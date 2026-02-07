@@ -221,18 +221,14 @@ local function dBlocks(bl, x, y)
             lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w - (gBoard.w - 3),
                 gBoard.h - (gBoard.h - 3))
         end
-    end
-    if bl ~= 0 then
+    else
         lg.setColor(colors[bl])
         lg.rectangle("line", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
         lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
     end
 end
 
--- draw active blocks based on player x and y positions
--- x + 1, x - 1, y + 1, y - 1
-
-function love.load(args)
+function love.load()
     lg.setBackgroundColor(0.1, 0.1, 0.18)
     lm.setVisible(false)
 end
@@ -250,19 +246,19 @@ function love.keypressed(k)
         end
     end
 
-    if lk.isDown(keys.left) then
+    if k == keys.left then
         ply.x = ply.x - 1
         ply.dasTimer = 0
         ply.arrTimer = 0
     end
 
-    if lk.isDown(keys.right) then
+    if k == keys.right then
         ply.x = ply.x + 1
         ply.dasTimer = 0
         ply.arrTimer = 0
     end
 
-    if lk.isDown(keys.ccw) then
+    if k == keys.ccw then
         if ply.bRot > 1 then
             ply.bRot = ply.bRot - 1
         else
@@ -270,7 +266,7 @@ function love.keypressed(k)
         end
     end
 
-    if lk.isDown(keys.cw) then
+    if k == keys.cw then
         if ply.bRot < #blocks[ply.currBlk] then
             ply.bRot = ply.bRot + 1
         else
@@ -278,17 +274,17 @@ function love.keypressed(k)
         end
     end
 
-    if lk.isDown(keys.sDrop) then
+    if k == keys.sDrop then
         ply.sdrTimer = 0
         ply.y = ply.y + 1
     end
 
-    if lk.isDown("r") then
+    if k == "r" then
         ply.x = 0
         ply.y = 0
     end
 
-    if lk.isDown("o") then
+    if k == "o" then
         if ply.currBlk < #blocks then
             ply.currBlk = ply.currBlk + 1
         else
