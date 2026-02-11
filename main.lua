@@ -1,16 +1,22 @@
+-- high score as of writing: 302k+, lv 12, ~07:00 time
 local lg, lw, lk, lm = love.graphics, love.window, love.keyboard, love.mouse
 local lt, le = love.timer, love.event
 
 local wWd, wHg = lg.getWidth(), lg.getHeight()
 
+local tClear = require "table.clear"
+
 local fonts = {
-    ui = lg.newFont("/assets/fonts/PixeloidSans.ttf", 18),
+    ui = lg.newFont("/assets/fonts/monogram-extended.TTF", 32),
     time = lg.newFont("/assets/fonts/monogram-extended.TTF", 42),
     othr = lg.newFont("/assets/fonts/Picopixel.ttf", 14)
 }
 
 local settings = {
     showGrid = true,
+    scale = 1,
+    -- TODO: Implement rotation system switching
+    rotSys = "ARS",
     isDebug = function()
         if arg[2] == "debug" then
             return true
@@ -51,7 +57,7 @@ local ply = {
     next = {},
     hold = 0,
 
-    -- in seconds
+    -- in milliseconds
     -- delay before autorepeat
     das = 102 / 1000,
     dasTimer = 0,
@@ -62,12 +68,19 @@ local ply = {
     sdr = 5 / 1000,
     sdrTimer = 0,
 
+    --TODO: Implement IRS
     -- lock delay
+    lDTimer = 0,
+    isLDly = false,
     lDelay = 500 / 1000,
+
+    -- line delay
+    lnDlyTmr = 0,
+    lnDly = 500 / 1000,
 
     -- gravity
     gTimer = 0,
-    grav = 1000 / 1000
+    grav = 0 / 1000,
 
     -- use two separate values for current block & placed blocks
     -- if block > height or active block > placed block = add block to placed blocks
@@ -79,19 +92,53 @@ local ply = {
 
 local stats = {
     scr = 0,
-    lv = 0,
+    lv = 1,
     line = 0,
+    nxtLines = 10,
+    comb = 0,
+    clr = {
+        sgl = 0,
+        dbl = 0,
+        trp = 0,
+        qd = 0,
+        ac = 0,
+    },
+    allClear = false,
+    -- equivalent to b2b
+    strk = 0,
+    lastAc = 0,
+    lineClr = 0,
+    stackedRows = 0,
     time = 0,
-    timeDisp = 0
+    timeDisp = 0,
+    lClearUI = {}
 }
 
-for i = 1, gBoard.gH, 1 do
+for _ = 1, gBoard.gH, 1 do
     table.insert(gMtrx, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })
 end
 
+local gCol = {
+    red = { .95, .55, .66 },
+    green = { .65, .89, .63 },
+    purple = { .80, .55, .66 },
+    orange = { .98, .70, .53 },
+    blue = { .54, .71, .98 },
+    yellow = { .98, .89, .69 },
+    lBlue = { .54, .86, .92 },
+}
+local gColD = {
+    red = { gCol.red[1] - .35, gCol.red[2] - .35, gCol.red[3] - .35 },
+    green = { gCol.green[1] - .35, gCol.green[2] - .35, gCol.green[3] - .35 },
+    purple = { gCol.purple[1] - .35, gCol.purple[2] - .35, gCol.purple[3] - .35 },
+    orange = { gCol.orange[1] - .35, gCol.orange[2] - .35, gCol.orange[3] - .35 },
+    blue = { gCol.blue[1] - .35, gCol.blue[2] - .35, gCol.blue[3] - .35 },
+    yellow = { gCol.yellow[1] - .35, gCol.yellow[2] - .35, gCol.yellow[3] - .35 },
+    lBlue = { gCol.lBlue[1] - .35, gCol.lBlue[2] - .35, gCol.lBlue[3] - .35 },
+}
+
 local blocks = {
     -- TODO: Implement modern rotation (low priority)
-    -- TODO: Implement ARS wall kicks
     -- use on currBlk
     {
         -- use on bRot
@@ -113,9 +160,9 @@ local blocks = {
             { 0,   "Z", "Z" }
         },
         {
-            { 0,   "Z" },
-            { "Z", "Z" },
-            { "Z", 0 },
+            { 0,   "Z", 0 },
+            { "Z", "Z", 0 },
+            { "Z", 0,   0 },
         }
     },
     {
@@ -125,9 +172,9 @@ local blocks = {
             { "S", "S", 0 }
         },
         {
-            { "S", 0 },
-            { "S", "S" },
-            { 0,   "S" },
+            { "S", 0,   0 },
+            { "S", "S", 0 },
+            { 0,   "S", 0 },
         }
     },
     {
@@ -206,15 +253,20 @@ local blocks = {
 }
 
 local function dBlocks(bl, x, y)
-    local colors = {
-        I = { .54, .86, .92 },
-        J = { .54, .71, .98 },
-        L = { .98, .70, .53 },
-        S = { .65, .89, .63 },
-        Z = { .95, .55, .66 },
-        T = { .80, .55, .66 },
-        O = { .98, .89, .69 },
-    }
+    local colors = function()
+        if settings.rotSys == "ARS" then
+            return
+            {
+                I = gCol.red,
+                Z = gCol.green,
+                S = gCol.purple,
+                L = gCol.orange,
+                J = gCol.blue,
+                O = gCol.yellow,
+                T = gCol.lBlue,
+            }
+        end
+    end
     if bl == 0 then
         if settings.showGrid then
             lg.setColor(.80 * .3, .84 * .3, .96 * .3)
@@ -222,11 +274,167 @@ local function dBlocks(bl, x, y)
                 gBoard.h - (gBoard.h - 3))
         end
     else
-        lg.setColor(colors[bl])
+        lg.setColor(colors()[bl])
         lg.rectangle("line", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
         lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
     end
 end
+
+local function bMove(tX, tY, mtrxTab)
+    if blocks[ply.currBlk][ply.bRot] ~= nil then
+        for y = 1, #blocks[ply.currBlk][ply.bRot] do
+            for x = 1, #blocks[ply.currBlk][ply.bRot][y] do
+                local tX, tY = tX + x, tY + y
+                -- why should it be a not operator though
+                if blocks[ply.currBlk][ply.bRot][y][x] ~= 0 and (
+                        tX < 1 or tX > gBoard.visW or tY > gBoard.visH or mtrxTab[tY][tX] ~= 0
+                    ) then
+                    return false
+                end
+            end
+        end
+    else
+        return false
+    end
+    return true
+end
+
+local function bRotate(tX, tY, mtrxTab)
+    -- TODO: Implement ARS wallkicks
+    if settings.rotSys == "ARS" then
+        local bLen = blocks[ply.currBlk]
+        if #bLen > 1 then
+            if #bLen[ply.bRot] == 3 then
+                -- print("trigger kick (no effect) (block type: " .. ply.currBlk .. ", block rotation: " .. ply.bRot .. ")")
+            end
+        end
+        return true
+    end
+end
+
+-- block placement & line clear logic
+local function bAdd(bX, bY, bL, mtrxTab)
+    local clear = true
+    local cAnim = false
+    for y = 1, #bL[ply.currBlk][ply.bRot] do
+        for x = 1, #bL[ply.currBlk][ply.bRot][y] do
+            if bL[ply.currBlk][ply.bRot][y][x] ~= 0 then
+                if bY + y <= #mtrxTab then
+                    mtrxTab[bY + y][bX + x] = bL[ply.currBlk][ply.bRot][y][x]
+                end
+            end
+        end
+    end
+
+    -- for line clear function
+    for y = 1, gBoard.visH do
+        clear = true
+        for x = 1, gBoard.visW do
+            if mtrxTab[y][x] == 0 then
+                clear = false
+                break
+            end
+        end
+
+        if clear then
+            stats.line = stats.line + 1
+            stats.scr = stats.scr + (stats.lv * (200 + 200))
+            print(stats.scr + (stats.lv * ((200 + 200) + (16000 * stats.lastAc))) ..
+                " curr score: " .. stats.scr .. " clear: " .. tostring(clear))
+            stats.lineClr = stats.lineClr + 1
+            print("lines: " .. stats.lineClr)
+
+            -- trigger line animation function (txt for now)
+            cAnim = true
+            print("---------- cAnim: " .. tostring(cAnim) .. " ----------")
+            -- TODO: Implement line clear delay
+            -- move top rows from cleared line to bottom
+            for clrY = y, 2, -1 do
+                for clrX = 1, gBoard.visW do
+                    mtrxTab[clrY][clrX] = mtrxTab[clrY - 1][clrX]
+                end
+            end
+            -- clear lines with empty tiles
+            for clrX = 1, gBoard.visW do
+                mtrxTab[1][clrX] = 0
+                clear = false
+            end
+        end
+    end
+
+
+    if cAnim then
+        tClear(stats.lClearUI)
+        stats.comb = stats.comb + 1
+        for y = 1, gBoard.visH do
+            for x = 1, gBoard.visW do
+                --TODO: Finish all clear detection
+                if stats.lineClr > 0 and stats.stackedRows < 1 then
+                    stats.allClear = false
+                end
+            end
+        end
+        -- "cBlk" can be color block, or current block, or a string for color (?)
+        table.insert(stats.lClearUI, { str = stats.lineClr, cBlk = ply.currBlk, a = 1, aSpd = 0.5 })
+        if stats.lineClr == 1 then
+            stats.clr.sgl = stats.clr.sgl + 1
+            stats.strk = 0
+        elseif stats.lineClr == 2 then
+            stats.clr.dbl = stats.clr.dbl + 1
+            stats.strk = 0
+        elseif stats.lineClr == 3 then
+            stats.clr.trp = stats.clr.trp + 1
+            stats.strk = 0
+        elseif stats.lineClr == 4 then
+            stats.clr.qd = stats.clr.qd + 1
+            stats.strk = stats.strk + 1
+        end
+        if stats.line > stats.nxtLines then
+            stats.lv = stats.lv + 1
+            stats.nxtLines = stats.nxtLines + 10
+        end
+        stats.lineClr = 0
+        cAnim = false
+        print("---------- cAnim: " .. tostring(cAnim) .. " ----------")
+    else
+        stats.comb = 0
+    end
+
+    if stats.allClear then
+        stats.scr = stats.scr + 16000
+        stats.clr.ac = stats.clr.ac + 1
+        table.insert(stats.lClearUI, { str = "C", cBlk = "C", a = 1, aSpd = 0.5 })
+        stats.allClear = false
+    end
+end
+
+-- color flash effect
+local function colFlashNew(col1, col2, time)
+    return {
+        index = 1,
+        cTime = 0,
+        time = time,
+        col = {
+            col1,
+            col2
+        }
+    }
+end
+
+local function colFlashUpd(colVar, dt)
+    colVar.cTime = colVar.cTime + dt
+    if colVar.cTime > colVar.time then
+        if colVar.index < #colVar.col then
+            colVar.index = colVar.index + 1
+        else
+            colVar.index = 1
+        end
+        colVar.cTime = 0
+    end
+end
+
+local cFStrk = colFlashNew(gCol.yellow, gCol.blue, 0.05)
+local cFCb = colFlashNew(gCol.yellow, gCol.orange, 0.75)
 
 function love.load()
     lg.setBackgroundColor(0.1, 0.1, 0.18)
@@ -247,41 +455,53 @@ function love.keypressed(k)
     end
 
     if k == keys.left then
-        ply.x = ply.x - 1
-        ply.dasTimer = 0
-        ply.arrTimer = 0
+        if bMove(ply.x - 1, ply.y, gMtrx) then
+            ply.x = ply.x - 1
+            ply.dasTimer = 0
+            ply.arrTimer = 0
+        end
     end
 
     if k == keys.right then
-        ply.x = ply.x + 1
-        ply.dasTimer = 0
-        ply.arrTimer = 0
+        if bMove(ply.x + 1, ply.y, gMtrx) then
+            ply.x = ply.x + 1
+            ply.dasTimer = 0
+            ply.arrTimer = 0
+        end
     end
 
     if k == keys.ccw then
-        if ply.bRot > 1 then
-            ply.bRot = ply.bRot - 1
-        else
-            ply.bRot = #blocks[ply.currBlk]
+        if bRotate(ply.x, ply.y, gMtrx) then
+            if ply.bRot > 1 then
+                ply.bRot = ply.bRot - 1
+            else
+                ply.bRot = #blocks[ply.currBlk]
+            end
         end
     end
 
     if k == keys.cw then
-        if ply.bRot < #blocks[ply.currBlk] then
-            ply.bRot = ply.bRot + 1
-        else
-            ply.bRot = 1
+        if bRotate(ply.x, ply.y, gMtrx) then
+            if ply.bRot < #blocks[ply.currBlk] then
+                ply.bRot = ply.bRot + 1
+            else
+                ply.bRot = 1
+            end
         end
     end
 
     if k == keys.sDrop then
-        ply.sdrTimer = 0
-        ply.y = ply.y + 1
+        if bMove(ply.x, ply.y + 1, gMtrx) then
+            ply.sdrTimer = 0
+            ply.y = ply.y + 1
+        end
     end
 
+    -- ### below is for debug only ###
     if k == "r" then
         ply.x = 0
         ply.y = 0
+        settings.scale = 1
     end
 
     if k == "o" then
@@ -289,6 +509,17 @@ function love.keypressed(k)
             ply.currBlk = ply.currBlk + 1
         else
             ply.currBlk = 1
+        end
+    end
+
+    if k == "e" then
+        ply.x = 0
+        ply.y = 0
+        settings.scale = 1
+        for y, _ in ipairs(gMtrx) do
+            for x, _ in ipairs(gMtrx[y]) do
+                gMtrx[y][x] = 0
+            end
         end
     end
 
@@ -307,6 +538,7 @@ end
 
 function love.update(dt)
     local _, tMs = math.modf(stats.time)
+
     stats.time = stats.time + dt
     stats.timeDisp = string.format("%02d", math.floor(stats.time / 60)) ..
         ":" .. string.format("%02d", stats.time % 60) .. "." .. string.format("%.2f", tMs):sub(3, -1)
@@ -316,10 +548,14 @@ function love.update(dt)
         if ply.dasTimer > ply.das then
             if ply.arrTimer > ply.arr then
                 if lk.isDown(keys.left) then
-                    ply.x = ply.x - 1
+                    if bMove(ply.x - 1, ply.y, gMtrx) then
+                        ply.x = ply.x - 1
+                    end
                 end
                 if lk.isDown(keys.right) then
-                    ply.x = ply.x + 1
+                    if bMove(ply.x + 1, ply.y, gMtrx) then
+                        ply.x = ply.x + 1
+                    end
                 end
             else
                 ply.arrTimer = ply.arrTimer + dt
@@ -336,8 +572,10 @@ function love.update(dt)
         if ply.sdrTimer < ply.sdr then
             ply.sdrTimer = ply.sdrTimer + dt
         else
-            ply.y = ply.y + 1
-            ply.sdrTimer = 0
+            if bMove(ply.x, ply.y + 1, gMtrx) then
+                ply.y = ply.y + 1
+                ply.sdrTimer = 0
+            end
         end
     else
         ply.sdrTimer = 0
@@ -347,7 +585,17 @@ function love.update(dt)
         ply.gTimer = ply.gTimer + dt
     else
         ply.gTimer = 0
-        ply.y = ply.y + 1
+        if bMove(ply.x, ply.y + 1, gMtrx) then
+            ply.y = ply.y + 1
+            ply.lDTimer = 0
+        else
+            if ply.lDTimer < ply.lDelay then
+                ply.lDTimer = ply.lDTimer + dt
+            else
+                bAdd(ply.x, ply.y, blocks, gMtrx)
+                ply.lDTimer = 0
+            end
+        end
     end
 
     for _, blk in ipairs(gMtrx) do
@@ -359,11 +607,32 @@ function love.update(dt)
     if ply.bRot > #blocks[ply.currBlk] then
         ply.bRot = 1
     end
+
+    for i, lnui in ipairs(stats.lClearUI) do
+        if lnui.a > 0 then
+            lnui.a = lnui.a - dt * lnui.aSpd
+        else
+            table.remove(stats.lClearUI, i)
+        end
+    end
+
+    -- color flash update
+    colFlashUpd(cFStrk, dt)
+    colFlashUpd(cFCb, dt)
+
+    if lk.isDown("-") then
+        settings.scale = settings.scale - dt
+    end
+
+    if lk.isDown("=") then
+        settings.scale = settings.scale + dt
+    end
 end
 
 function love.draw()
     -- board matrix
     lg.push()
+    lg.scale(settings.scale, settings.scale)
     lg.translate((wWd - (gBoard.w * gBoard.visW)) / 2, (wHg - (gBoard.h * gBoard.visH)) / 2)
     lg.setColor(.06, .06, .12, 1)
     lg.rectangle("fill", gBoard.x, gBoard.y + gBoard.h, gBoard.w * 10, gBoard.h * gBoard.gH - gBoard.h)
@@ -390,19 +659,49 @@ function love.draw()
     end
 
     lg.setColor(1, 1, 1, 1)
-    lg.printf("SCORE\n", fonts.othr, -60, gBoard.h * (gBoard.visH - 2.5), 40, "right")
-    lg.printf(stats.scr, fonts.ui, -60, gBoard.h * (gBoard.visH - 1.85), 40, "right")
+    lg.printf("SCORE\n", fonts.othr, -60, gBoard.h * (gBoard.visH - 2.35), 40, "right")
+    lg.printf(stats.scr, fonts.ui, -1200, gBoard.h * (gBoard.visH - 1.85), 1200 - 20, "right")
 
     lg.printf("LV.\n", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 5), 40, "left")
-    lg.printf(stats.lv, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 4.35), 40, "left")
+    lg.printf(stats.lv, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 4.5), 1200, "left")
 
     lg.printf("LINES\n", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 2.5), 40, "left")
-    lg.printf(stats.line, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 1.85), 40, "left")
+    lg.printf(stats.line, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 2), 1200, "left")
 
     lg.printf(stats.timeDisp, fonts.time, gBoard.x,
         gBoard.h * (gBoard.visH + 0.35), gBoard.w * gBoard.visW, "center")
 
-    --TODO: Change border color to last block used for line clear
+    for i, lnui in ipairs(stats.lClearUI) do
+        local clr = function()
+            if settings.rotSys == "ARS" then
+                return {
+                    gColD.red,
+                    gColD.green,
+                    gColD.purple,
+                    gColD.orange,
+                    gColD.blue,
+                    gColD.yellow,
+                    gColD.lBlue,
+                    C = gColD.yellow
+                }
+            end
+        end
+        lg.setColor(clr()[lnui.cBlk][1], clr()[lnui.cBlk][2], clr()[lnui.cBlk][3], lnui.a)
+        lg.rectangle("fill", -52 - (35 * (i - 1)), gBoard.h * (gBoard.visH - 12), 30, 30)
+        lg.setColor(1, 1, 1, lnui.a)
+        lg.printf(lnui.str, fonts.ui, -1210 - (35 * (i - 1)), gBoard.h * (gBoard.visH - 12), 1200 - 20, "right")
+    end
+
+    if stats.strk > 1 then
+        lg.setColor(cFStrk.col[cFStrk.index][1], cFStrk.col[cFStrk.index][2], cFStrk.col[cFStrk.index][3])
+        lg.printf("STK. x" .. stats.strk - 1, fonts.othr, -1200, gBoard.h * (gBoard.visH - 9), 1200 - 20, "right")
+    end
+
+    if stats.comb > 1 then
+        lg.setColor(cFCb.col[cFStrk.index][1], cFCb.col[cFStrk.index][2], cFCb.col[cFStrk.index][3])
+        lg.printf("COMBO x" .. stats.comb, fonts.othr, -1200, gBoard.h * (gBoard.visH - 9.75), 1200 - 20, "right")
+    end
+
     lg.setColor(0.7, 0.7, 0.7, 1)
     lg.rectangle("line", gBoard.x, gBoard.y + gBoard.h, gBoard.w * 10, gBoard.h * gBoard.gH - gBoard.gH)
     lg.pop()
@@ -415,13 +714,26 @@ function love.draw()
             ply.x ..
             "\ny: " ..
             ply.y ..
+            "\nvisW: " .. gBoard.visW .. "\nvisH: " .. gBoard.visH ..
             "\nbRot: " ..
             ply.bRot ..
             "\ncurrBlk: " ..
             ply.currBlk ..
             "\ndasTimer: " ..
             ply.dasTimer ..
-            "\narrTimer: " .. ply.arrTimer .. "\nsdrTimer: " .. ply.sdrTimer .. "\ngTimer: " .. ply.gTimer,
+            "\narrTimer: " ..
+            ply.arrTimer ..
+            "\nsdrTimer: " ..
+            ply.sdrTimer ..
+            "\ngTimer: " ..
+            ply.gTimer ..
+            "\nlDTimer: " ..
+            ply.lDTimer ..
+            "\nsg: " ..
+            stats.clr.sgl ..
+            "\ndb: " ..
+            stats.clr.dbl .. "\ntp: " .. stats.clr.trp .. "\nqd: " .. stats.clr.qd .. "\n ac: " .. stats.clr.ac
+            .. "\ncomb: " .. stats.comb .. "\nstrk: " .. stats.strk,
             fonts.othr, 0, 10, wWd - 10, "right")
     end
 end
