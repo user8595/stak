@@ -1,5 +1,5 @@
 -- high score as of writing: 302k+, lv 12, ~07:00 time
--- highest secret grade as of writing: s7, lv 11, 04:42.54 time
+-- highest secret grade as of writing: s8, lv 41, 23:57.33 time
 --TODO: Implement secret grade values
 local lg, lw, lk, lm = love.graphics, love.window, love.keyboard, love.mouse
 local lt, le = love.timer, love.event
@@ -16,7 +16,9 @@ local fonts = {
 }
 
 local game = {
-    isPaused = false
+    isPaused = false,
+    isPauseDelay = false,
+    isFail = false
 }
 
 local settings = {
@@ -91,6 +93,8 @@ local ply = {
     gTimer = 0,
     grav = 1000 / 1000,
 
+    isHDrop = false
+
     -- use two separate values for current block & placed blocks
     -- if block > height or active block > placed block = add block to placed blocks
     -- check for each block individually as a table
@@ -121,6 +125,7 @@ local stats = {
     timeDisp = 0,
     -- used for pps counter
     stacks = 0,
+    maxPPS = 0,
     lClearUI = {}
 }
 
@@ -138,6 +143,8 @@ local gCol = {
     yellow = { .98, .89, .69 },
     lBlue = { .54, .86, .92 },
     white = { .80, .84, .96 },
+    gray = { .35, .36, .44 },
+    gOutline = { .58, .60, .70 }
 }
 local gColD = {
     red = { gCol.red[1] - .35, gCol.red[2] - .35, gCol.red[3] - .35 },
@@ -289,7 +296,7 @@ local function mtrxClr(mtrxTab)
     end
 end
 
-local function dBlocks(bl, x, y, isGhost)
+local function dBlocks(bl, x, y, isGhost, isOutline)
     local colors = function()
         if settings.rotSys == "ARS" then
             return
@@ -305,16 +312,23 @@ local function dBlocks(bl, x, y, isGhost)
         end
     end
     if bl ~= 0 then
-        if isGhost then
-            lg.setColor(colors()[bl][1], colors()[bl][2], colors()[bl][3], 0.25)
+        if not game.isFail then
+            if isGhost then
+                lg.setColor(colors()[bl][1], colors()[bl][2], colors()[bl][3], 0.25)
+            else
+                lg.setColor(colors()[bl])
+            end
         else
-            lg.setColor(colors()[bl])
+            if isGhost then
+                lg.setColor(gCol.gray[1], gCol.gray[2], gCol.gray[3], 0.25)
+            else
+                lg.setColor(gCol.gray)
+            end
         end
 
-        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
-        --outline for ghost
-        if isGhost then
-            lg.setColor(colors()[bl][1], colors()[bl][2], colors()[bl][3], 0.5)
+        if not isOutline then
+            lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
+        else
             lg.rectangle("line", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
         end
     end
@@ -334,6 +348,13 @@ local function dGrid(mtrxTab)
 end
 
 local function dOutline(mtrxTab, strokeWd)
+    local sCol = function()
+        if not game.isFail then
+            return { 1, 1, 1, 1 }
+        else
+            return gCol.gOutline
+        end
+    end
     for y, _ in ipairs(mtrxTab) do
         for x, br in ipairs(mtrxTab[y]) do
             if y ~= 1 then
@@ -341,38 +362,38 @@ local function dOutline(mtrxTab, strokeWd)
                     -- there must be a better way than this right
                     -- ##### bottom rows
                     if x == 1 and y == #mtrxTab then
-                        lg.setColor(1, 1, 1, 1)
+                        lg.setColor(sCol())
                         lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1) - strokeWd,
                             gBoard.w + strokeWd,
                             gBoard.h + strokeWd)
                     elseif x == #mtrxTab[y] and y == #mtrxTab then
-                        lg.setColor(1, 1, 1, 1)
+                        lg.setColor(sCol())
                         lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
                             gBoard.y + gBoard.h * (y - 1) - strokeWd,
                             gBoard.w + strokeWd,
                             gBoard.h + strokeWd)
                         -- ##### left % right columns
                     elseif x == 1 then
-                        lg.setColor(1, 1, 1, 1)
+                        lg.setColor(sCol())
                         lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1),
                             gBoard.y + gBoard.h * (y - 1) - strokeWd,
                             gBoard.w + strokeWd,
                             gBoard.h + (strokeWd * 2))
                     elseif x == #mtrxTab[y] then
-                        lg.setColor(1, 1, 1, 1)
+                        lg.setColor(sCol())
                         lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
                             gBoard.y + gBoard.h * (y - 1) - strokeWd,
                             gBoard.w + strokeWd,
                             gBoard.h + (strokeWd * 2))
                         -- bottom row (general)
                     elseif y == #mtrxTab then
-                        lg.setColor(1, 1, 1, 1)
+                        lg.setColor(sCol())
                         lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
                             gBoard.y + gBoard.h * (y - 1) - strokeWd,
                             gBoard.w + (strokeWd * 2),
                             gBoard.h + (strokeWd))
                     else
-                        lg.setColor(1, 1, 1, 1)
+                        lg.setColor(sCol())
                         lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
                             gBoard.y + gBoard.h * (y - 1) - strokeWd,
                             gBoard.w + (strokeWd * 2),
@@ -522,7 +543,7 @@ local function bAdd(bX, bY, bL, mtrxTab)
     end
 end
 
-local function bGhost(mtrxTab)
+local function bGhost(mtrxTab, isOutline)
     local gX, gY = 0 + ply.x, 0 + ply.y
     while bMove(gX, gY + 1, mtrxTab) do
         gY = gY + 1
@@ -531,7 +552,11 @@ local function bGhost(mtrxTab)
     for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
         for x, blk in ipairs(blocks[ply.currBlk][ply.bRot][y]) do
             if blk ~= 0 then
-                dBlocks(blk, x + gX, y + gY, true)
+                if isOutline then
+                    dBlocks(blk, x + gX, y + gY, true, true)
+                else
+                    dBlocks(blk, x + gX, y + gY, true, false)
+                end
             end
         end
     end
@@ -615,19 +640,7 @@ function love.keypressed(k)
 
         -- TODO: Implement hard drop animation (trails of current obj)
         if k == keys.hDrop then
-            while bMove(ply.x, ply.y + 1, gMtrx) do
-                ply.y = ply.y + 1
-                ply.sdrTimer = 0
-                ply.arrTimer = 0
-                ply.gTimer = ply.grav
-                ply.lDTimer = ply.lDelay
-                ply.gTimer = ply.grav
-            end
-            if ply.lDTimer < ply.lDelay then
-                bAdd(ply.x, ply.y, blocks, gMtrx)
-                ply.x, ply.y = 3, 0
-                ply.bRot = 1
-            end
+            ply.isHDrop = true
         end
 
         if k == keys.ccw then
@@ -680,6 +693,14 @@ function love.keypressed(k)
         settings.scale = 1
     end
 
+    if k == "i" then
+        if not game.isFail then
+            game.isFail = true
+        else
+            game.isFail = false
+        end
+    end
+
     if k == "f4" then
         if not settings.isDebug then
             settings.isDebug = true
@@ -707,12 +728,11 @@ function love.update(dt)
     -- time milliseconds
     local _, tMs = math.modf(stats.time)
 
-    if not game.isPaused then
+    if not game.isPaused and not game.isPauseDelay then
         stats.time = stats.time + dt
         stats.timeDisp = string.format("%02d", math.floor(stats.time / 60)) ..
             ":" .. string.format("%02d", stats.time % 60) .. "." .. string.format("%.2f", tMs):sub(3, -1)
 
-        -- das & arr implemented
         if lk.isDown(keys.left) or lk.isDown(keys.right) then
             if ply.dasTimer > ply.das then
                 if ply.arrTimer > ply.arr then
@@ -767,16 +787,31 @@ function love.update(dt)
                 ply.gTimer = 0
             else
                 if ply.lDTimer < ply.lDelay then
-                    -- sDrop button held == stuck on this line
-                    -- TODO: Fix soft drop issue
                     ply.lDTimer = ply.lDTimer + dt
                 else
                     stats.stacks = stats.stacks + 1
-                    bAdd(ply.x, ply.y, blocks, gMtrx)
-                    plyInit(ply)
+                    if not ply.isHDrop then
+                        bAdd(ply.x, ply.y, blocks, gMtrx)
+                    end
+                    if ply.isHDrop then
+                        ply.isHDrop = false
+                    end
                     --TODO: Add entry delay
+                    plyInit(ply)
                 end
             end
+        end
+
+        if ply.isHDrop then
+            --TODO: Implement sonic drop?
+            while bMove(ply.x, ply.y + 1, gMtrx) do
+                ply.y = ply.y + 1
+                ply.sdrTimer = 0
+                ply.arrTimer = 0
+            end
+            ply.gTimer = ply.grav + 1
+            ply.lDTimer = ply.lDelay
+            bAdd(ply.x, ply.y, blocks, gMtrx)
         end
 
         if not bMove(ply.x, ply.y, gMtrx) and not bRotate(ply.x, ply.y, gMtrx) then
@@ -791,12 +826,18 @@ function love.update(dt)
 
         gBoard.visH = #gMtrx
 
+        -- max stats values
         if stats.maxComb < stats.comb then
-            stats.maxComb = stats.comb
+            stats.maxComb = stats.comb - 1
         end
 
         if stats.maxStrk < stats.strk then
             stats.maxStrk = stats.strk - 1
+        end
+
+        -- TODO: Is this delay reasonable?
+        if stats.maxPPS < stats.stacks / stats.time and stats.time > 0.1 then
+            stats.maxPPS = stats.stacks / stats.time
         end
 
         -- workaround for test
@@ -876,7 +917,8 @@ function love.draw()
     lg.printf("LINES\n", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 3.65), 40, "left")
     lg.printf(stats.line, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 3.15), 1200, "left")
 
-    lg.printf(string.format("%.2f", stats.stacks / stats.time) .. " p/s", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 1.35), 1200, "left")
+    lg.printf(string.format("%.2f", stats.stacks / stats.time) .. " p/s", fonts.othr, gBoard.w * (gBoard.visW + 0.85),
+        gBoard.h * (gBoard.visH - 1.35), 1200, "left")
 
     lg.printf(stats.timeDisp, fonts.time, gBoard.x,
         gBoard.h * (gBoard.visH + 0.35), gBoard.w * gBoard.visW, "center")
@@ -909,13 +951,14 @@ function love.draw()
 
     if stats.comb > 1 then
         lg.setColor(cFCb.col[cFStrk.index][1], cFCb.col[cFStrk.index][2], cFCb.col[cFStrk.index][3])
-        lg.printf("COMBO x" .. stats.comb, fonts.othr, -1200, gBoard.h * (gBoard.visH - 9.75), 1200 - 20, "right")
+        lg.printf("COMBO x" .. stats.comb - 1, fonts.othr, -1200, gBoard.h * (gBoard.visH - 9.75), 1200 - 20, "right")
     end
 
     lg.setColor(0.7, 0.7, 0.7, 1)
     lg.rectangle("line", gBoard.x, gBoard.y + gBoard.h, gBoard.w * 10, gBoard.h * gBoard.gH - gBoard.gH)
     if not game.isPaused then
-        bGhost(gMtrx)
+        bGhost(gMtrx, false)
+        bGhost(gMtrx, true)
     end
     lg.pop()
 
@@ -925,7 +968,7 @@ function love.draw()
         lg.rectangle("fill", 0, 0, wWd, wHg)
         lg.setColor(1, 1, 1, 1)
         lg.printf("- PAUSED -", fonts.ui, 0, wHg / 2, wWd, "center")
-        lg.printf({ gCol.orange, "<" .. keys.pause:gsub("^%l", string.upper) .. "> ", { 1, 1, 1, 1 }, "to continue" },
+        lg.printf({ gCol.orange, "<" .. keys.pause:gsub("^%l", string.upper) .. "> ", gCol.gOutline, "to continue" },
             fonts.othr, 0, wHg / 2 + 30, wWd, "center")
         lg.setColor(gCol.bg)
         lg.rectangle("fill", 0, wHg - 50, wWd, 50)
@@ -937,7 +980,11 @@ function love.draw()
                 gCol
                     .orange, " all clears: ", gCol.white, stats.clr.ac, gCol.red, " max comb. ", gCol.yellow, "&", gCol
                 .purple, " strk: ", gCol.white, "x" ..
-            stats.maxComb .. " | x" .. stats.maxStrk }, fonts.othr, 0, wHg - 30, wWd, "center")
+            stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "max spd.: " ..
+            string.format("%.2f", stats.maxPPS) .. " p/s" }, fonts.othr, 0, wHg - 30, wWd, "center")
+    else
+        lg.setColor(gCol.gray)
+        lg.printf("very unstable!!\nexpect some crashes", fonts.othr, 0, wHg - 40, wWd - 20, "right")
     end
 
     lg.setColor(1, 1, 1, 1)
@@ -968,7 +1015,11 @@ function love.draw()
             "\ngTimer: " ..
             ply.gTimer ..
             "\nlDTimer: " ..
-            ply.lDTimer .. "\nrotSys: " .. settings.rotSys .. "\nstacks: " .. stats.stacks ..
+            ply.lDTimer ..
+            "\nisHDrop: " ..
+            tostring(ply.isHDrop) ..
+            "\nisPaused: " .. tostring(game.isPaused) .. "\nisPauseDelay: " .. tostring(game.isPauseDelay) ..
+            "\nrotSys: " .. settings.rotSys .. "\nstacks: " .. stats.stacks .. "\nisFail: " .. tostring(game.isFail) ..
             "\nsg: " ..
             stats.clr.sgl ..
             "\ndb: " ..
