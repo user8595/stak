@@ -10,6 +10,7 @@ local tClear = require "table.clear"
 
 local fonts = {
     ui = lg.newFont("/assets/fonts/monogram-extended.TTF", 32),
+    smol = lg.newFont("/assets/fonts/monogram-extended.TTF", 24),
     time = lg.newFont("/assets/fonts/monogram-extended.TTF", 42),
     othr = lg.newFont("/assets/fonts/Picopixel.ttf", 14)
 }
@@ -118,6 +119,8 @@ local stats = {
     lineClr = 0,
     time = 0,
     timeDisp = 0,
+    -- used for pps counter
+    stacks = 0,
     lClearUI = {}
 }
 
@@ -134,7 +137,7 @@ local gCol = {
     blue = { .54, .71, .98 },
     yellow = { .98, .89, .69 },
     lBlue = { .54, .86, .92 },
-    white = { .80, .84, .96 }
+    white = { .80, .84, .96 },
 }
 local gColD = {
     red = { gCol.red[1] - .35, gCol.red[2] - .35, gCol.red[3] - .35 },
@@ -241,16 +244,6 @@ local blocks = {
     {
         {
             { 0,   0,   0 },
-            { 0,   "T", 0 },
-            { "T", "T", "T" },
-        },
-        {
-            { 0, "T", 0 },
-            { 0, "T", "T" },
-            { 0, "T", 0 }
-        },
-        {
-            { 0,   0,   0 },
             { "T", "T", "T" },
             { 0,   "T", 0 },
         },
@@ -258,6 +251,16 @@ local blocks = {
             { 0,   "T", 0 },
             { "T", "T", 0 },
             { 0,   "T", 0 }
+        },
+        {
+            { 0,   0,   0 },
+            { 0,   "T", 0 },
+            { "T", "T", "T" },
+        },
+        {
+            { 0, "T", 0 },
+            { 0, "T", "T" },
+            { 0, "T", 0 }
         },
     },
 }
@@ -270,6 +273,7 @@ end
 local function gameInit(plyVar, sts)
     plyVar.arrTimer, plyVar.dasTimer, plyVar.gTimer, plyVar.grav = 0, 0, 0, 1000 / 1000
     sts.time = 0
+    sts.stacks = 0
     sts.clr.sgl, sts.clr.dbl, sts.clr.trp, sts.clr.qd, sts.clr.ac = 0, 0, 0, 0, 0
     sts.lv = 1
     sts.line = 0
@@ -329,15 +333,51 @@ local function dGrid(mtrxTab)
     end
 end
 
-local function dOutline(mtrxTab)
+local function dOutline(mtrxTab, strokeWd)
     for y, _ in ipairs(mtrxTab) do
         for x, br in ipairs(mtrxTab[y]) do
             if y ~= 1 then
                 if br ~= 0 then
-                    lg.setColor(1, 1, 1, 1)
-                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - 2, gBoard.y + gBoard.h * (y - 1) - 2,
-                        gBoard.w + 4,
-                        gBoard.h + 4)
+                    -- there must be a better way than this right
+                    -- ##### bottom rows
+                    if x == 1 and y == #mtrxTab then
+                        lg.setColor(1, 1, 1, 1)
+                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1) - strokeWd,
+                            gBoard.w + strokeWd,
+                            gBoard.h + strokeWd)
+                    elseif x == #mtrxTab[y] and y == #mtrxTab then
+                        lg.setColor(1, 1, 1, 1)
+                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
+                            gBoard.y + gBoard.h * (y - 1) - strokeWd,
+                            gBoard.w + strokeWd,
+                            gBoard.h + strokeWd)
+                        -- ##### left % right columns
+                    elseif x == 1 then
+                        lg.setColor(1, 1, 1, 1)
+                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1),
+                            gBoard.y + gBoard.h * (y - 1) - strokeWd,
+                            gBoard.w + strokeWd,
+                            gBoard.h + (strokeWd * 2))
+                    elseif x == #mtrxTab[y] then
+                        lg.setColor(1, 1, 1, 1)
+                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
+                            gBoard.y + gBoard.h * (y - 1) - strokeWd,
+                            gBoard.w + strokeWd,
+                            gBoard.h + (strokeWd * 2))
+                        -- bottom row (general)
+                    elseif y == #mtrxTab then
+                        lg.setColor(1, 1, 1, 1)
+                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
+                            gBoard.y + gBoard.h * (y - 1) - strokeWd,
+                            gBoard.w + (strokeWd * 2),
+                            gBoard.h + (strokeWd))
+                    else
+                        lg.setColor(1, 1, 1, 1)
+                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
+                            gBoard.y + gBoard.h * (y - 1) - strokeWd,
+                            gBoard.w + (strokeWd * 2),
+                            gBoard.h + (strokeWd * 2))
+                    end
                 end
             end
         end
@@ -377,11 +417,15 @@ end
 local function bRotate(tX, tY, mtrxTab)
     -- TODO: Implement ARS wallkicks
     if settings.rotSys == "ARS" then
-        local bLen = blocks[ply.currBlk]
-        if #bLen > 1 then
+        if blocks[ply.currBlk] ~= nil then
+            local bLen = blocks[ply.currBlk]
+            if #bLen > 1 then
 
+            end
+            return true
+        else
+            return false
         end
-        return true
     end
 end
 
@@ -389,11 +433,13 @@ end
 local function bAdd(bX, bY, bL, mtrxTab)
     local clear = true
     local cAnim = false
-    for y, _ in ipairs(bL[ply.currBlk][ply.bRot]) do
-        for x, blk in ipairs(bL[ply.currBlk][ply.bRot][y]) do
-            if blk ~= 0 then
-                if bY + y <= #mtrxTab then
-                    mtrxTab[bY + y][bX + x] = blk
+    if bL[ply.currBlk][ply.bRot] ~= nil then
+        for y, _ in ipairs(bL[ply.currBlk][ply.bRot]) do
+            for x, blk in ipairs(bL[ply.currBlk][ply.bRot][y]) do
+                if blk ~= 0 then
+                    if bY + y <= #mtrxTab then
+                        mtrxTab[bY + y][bX + x] = blk
+                    end
                 end
             end
         end
@@ -517,7 +563,7 @@ local function colFlashUpd(colVar, dt)
 end
 
 local cFStrk = colFlashNew(gCol.yellow, gCol.blue, 0.05)
-local cFCb = colFlashNew(gCol.yellow, gCol.orange, 0.75)
+local cFCb = colFlashNew(gCol.yellow, gCol.white, 0.75)
 local cFAC = colFlashNew(gColD.yellow, gColD.lBlue, 0.1)
 
 function love.load()
@@ -527,7 +573,9 @@ end
 
 function love.keypressed(k)
     if k == "escape" then
-        if game.isPaused then
+        if not game.isPaused then
+            game.isPaused = true
+        else
             le.quit(0)
         end
     end
@@ -645,6 +693,16 @@ function love.resize(w, h)
     wWd, wHg = w, h
 end
 
+function love.focus(f)
+    if f then
+        if not game.isPaused then
+            game.isPaused = false
+        end
+    else
+        game.isPaused = true
+    end
+end
+
 function love.update(dt)
     -- time milliseconds
     local _, tMs = math.modf(stats.time)
@@ -713,6 +771,7 @@ function love.update(dt)
                     -- TODO: Fix soft drop issue
                     ply.lDTimer = ply.lDTimer + dt
                 else
+                    stats.stacks = stats.stacks + 1
                     bAdd(ply.x, ply.y, blocks, gMtrx)
                     plyInit(ply)
                     --TODO: Add entry delay
@@ -781,7 +840,7 @@ function love.draw()
     end
     if not game.isPaused then
         if settings.showOutlines then
-            dOutline(gMtrx)
+            dOutline(gMtrx, 2)
         end
 
         for y, _ in ipairs(gMtrx) do
@@ -811,11 +870,13 @@ function love.draw()
     lg.printf("SCORE\n", fonts.othr, -60, gBoard.h * (gBoard.visH - 2.35), 40, "right")
     lg.printf(stats.scr, fonts.ui, -1200, gBoard.h * (gBoard.visH - 1.85), 1200 - 20, "right")
 
-    lg.printf("LV.\n", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 5), 40, "left")
-    lg.printf(stats.lv, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 4.5), 1200, "left")
+    lg.printf("LV.\n", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 6.15), 40, "left")
+    lg.printf(stats.lv, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 5.65), 1200, "left")
 
-    lg.printf("LINES\n", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 2.5), 40, "left")
-    lg.printf(stats.line, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 2), 1200, "left")
+    lg.printf("LINES\n", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 3.65), 40, "left")
+    lg.printf(stats.line, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 3.15), 1200, "left")
+
+    lg.printf(string.format("%.2f", stats.stacks / stats.time) .. " p/s", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 1.35), 1200, "left")
 
     lg.printf(stats.timeDisp, fonts.time, gBoard.x,
         gBoard.h * (gBoard.visH + 0.35), gBoard.w * gBoard.visW, "center")
@@ -864,7 +925,11 @@ function love.draw()
         lg.rectangle("fill", 0, 0, wWd, wHg)
         lg.setColor(1, 1, 1, 1)
         lg.printf("- PAUSED -", fonts.ui, 0, wHg / 2, wWd, "center")
-        lg.printf("<" .. keys.pause .. "> to continue", fonts.othr, 0, wHg / 2 + 30, wWd, "center")
+        lg.printf({ gCol.orange, "<" .. keys.pause:gsub("^%l", string.upper) .. "> ", { 1, 1, 1, 1 }, "to continue" },
+            fonts.othr, 0, wHg / 2 + 30, wWd, "center")
+        lg.setColor(gCol.bg)
+        lg.rectangle("fill", 0, wHg - 50, wWd, 50)
+        lg.setColor(1, 1, 1, 1)
         lg.printf(
             { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
                 .yellow,
@@ -903,7 +968,7 @@ function love.draw()
             "\ngTimer: " ..
             ply.gTimer ..
             "\nlDTimer: " ..
-            ply.lDTimer .. "\nrotSys: " .. settings.rotSys ..
+            ply.lDTimer .. "\nrotSys: " .. settings.rotSys .. "\nstacks: " .. stats.stacks ..
             "\nsg: " ..
             stats.clr.sgl ..
             "\ndb: " ..
