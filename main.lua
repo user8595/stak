@@ -22,6 +22,7 @@ local game = {
 }
 
 local settings = {
+    showInfo = true,
     showGrid = true,
     showOutlines = true,
     scale = 1,
@@ -708,6 +709,14 @@ function love.keypressed(k)
             settings.isDebug = false
         end
     end
+
+    if k == "f5" then
+        if not settings.showInfo then
+            settings.showInfo = true
+        else
+            settings.showInfo = false
+        end
+    end
 end
 
 function love.resize(w, h)
@@ -978,13 +987,15 @@ function love.draw()
                 .yellow,
                 " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white, "   |  ",
                 gCol
-                    .orange, " all clears: ", gCol.white, stats.clr.ac, gCol.red, " max comb. ", gCol.yellow, "&", gCol
+                    .orange, " all clears: ", gCol.white, stats.clr.ac, gCol.red, " max comb. ", gCol.orange, "&", gCol
                 .purple, " strk: ", gCol.white, "x" ..
-            stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "max spd.: " ..
-            string.format("%.2f", stats.maxPPS) .. " p/s" }, fonts.othr, 0, wHg - 30, wWd, "center")
+            stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "max spd.: ", gCol.white,
+                string.format("%.2f", stats.maxPPS) .. " p/s" }, fonts.othr, 0, wHg - 30, wWd, "center")
     else
-        lg.setColor(gCol.gray)
-        lg.printf("very unstable!!\nexpect some crashes", fonts.othr, 0, wHg - 40, wWd - 20, "right")
+        if settings.showInfo then
+            lg.setColor(gCol.gray)
+            lg.printf("very unstable!!\nexpect some crashes", fonts.othr, 0, wHg - 40, wWd - 20, "right")
+        end
     end
 
     lg.setColor(1, 1, 1, 1)
