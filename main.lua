@@ -1,5 +1,5 @@
 -- high score as of writing: 21850500, lv 110, 1100 lines, 35:33.42 time
--- highest secret grade as of writing: s8, lv 1, 01:53.48 time (buggy)
+-- highest secret grade as of writing: s8, lv 8, 75 lines, 03:33.64 time (with current version's settings)
 --TODO: Implement secret grade values
 local lg, lw, lk, lm = love.graphics, love.window, love.keyboard, love.mouse
 local lt, le = love.timer, love.event
@@ -24,6 +24,7 @@ for _, f in pairs(fonts) do
     f:setFilter("nearest", "nearest")
 end
 
+-- game states
 local game = {
     isPaused = false,
     isPauseDelay = false,
@@ -41,6 +42,7 @@ local settings = {
     coloredHDropEffect = true,
     lineEffect = true,
     lockEffect = true,
+    showDanger = true,
     scale = 1,
     -- TODO: Implement rotation system switching
     rotSys = "ARS",
@@ -114,8 +116,7 @@ local ply = {
     grav = 1000 / 1000,
 
     isHDrop = false,
-    -- for hard drop effect
-    hDAlpha = 0,
+    dangerA = 0,
 
     blkLen = 1
 
@@ -317,8 +318,11 @@ local function bMove(tX, tY, tRot, mtrxTab)
             for x = 1, #blocks[ply.currBlk][tRot][y] do
                 local tX, tY = tX + x, tY + y
                 if blocks[ply.currBlk][tRot][y][x] ~= 0 and (
-                        tX < 1 or tX > gBoard.visW or tY > gBoard.visH or mtrxTab[tY][tX] ~= 0
+                        tX < 1 or tX > gBoard.visW or tY > gBoard.visH
                     ) then
+                    return false
+                end
+                if blocks[ply.currBlk][tRot][y][x] ~= 0 and mtrxTab[tY][tX] ~= 0 then
                     return false
                 end
             end
@@ -364,6 +368,7 @@ end
 local function gameInit(plyVar, sts)
     plyVar.arrTimer, plyVar.dasTimer, plyVar.gTimer, plyVar.grav = 0, 0, 0, 1000 / 1000
     plyVar.hold = 0
+    plyVar.dangerA = 0
     sts.time = 0
     sts.stacks = 0
     sts.clr.sgl, sts.clr.dbl, sts.clr.trp, sts.clr.qd, sts.clr.ac = 0, 0, 0, 0, 0
@@ -685,7 +690,7 @@ end
 local function lkUpd(lockEffectTab, dt)
     for i, lk in ipairs(lockEffectTab) do
         if lk.a > 0 then
-            lk.a = lk.a - dt * 10
+            lk.a = lk.a - dt * 7
         else
             table.remove(lockEffectTab, i)
         end
@@ -799,7 +804,6 @@ local function bAdd(bX, bY, bL, mtrxTab)
         end
 
         if clear then
-            -- for offset
             stats.line = stats.line + 1
             stats.lineClr = stats.lineClr + 1
 
@@ -819,6 +823,7 @@ local function bAdd(bX, bY, bL, mtrxTab)
                 clear = false
             end
             if settings.lineEffect then
+                -- for offset
                 newLineEffect(y - 1, gBoard, stats.lEffect, false, true)
             end
         end
@@ -903,6 +908,21 @@ local function bGhost(mtrxTab, isOutline)
             end
         end
     end
+end
+
+-- danger zone (near failure) check
+local function dangerCheck(mtrxTab)
+    local dangerY = 7 -- offset from first row, then 7 == 6 from first row
+    for y, _ in ipairs(mtrxTab) do
+        for x, _ in ipairs(mtrxTab[y]) do
+            if x > math.floor(gBoard.visW / 3) and x < gBoard.visW - (math.floor(gBoard.visW / 3)) and y < dangerY then
+                if mtrxTab[y][x] ~= 0 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
 end
 
 -- color flash effect
@@ -1023,25 +1043,21 @@ function love.keypressed(k)
 
         -- TODO: Implement hard drop animation (trails of current obj)
         if k == keys.hDrop then
+            -- so many edge cases
+            ply.gTimer = 0
+            ply.lDTimer = 0
             ply.isHDrop = true
             while bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) do
                 ply.y = ply.y + 1
             end
             ply.arrTimer = 0
             ply.sdrTimer = 0
-            ply.lDTimer = ply.lDelay
-            ply.gTimer = ply.grav + (gBoard.visH + 5)
             bAdd(ply.x, ply.y, blocks, gMtrx)
-
-            if settings.hDropEffect then
-            end
 
             bagInit(ply)
             plyInit(ply)
 
             stats.stacks = stats.stacks + 1
-
-            ply.isHDrop = false
         end
 
         if k == keys.ccw then
@@ -1191,6 +1207,17 @@ function love.update(dt)
         lEUpdate(stats.lEffect, dt)
         lkUpd(stats.lkEfct, dt)
 
+        -- danger zone detection
+        if dangerCheck(gMtrx) then
+            if ply.dangerA < 0.1 then
+                ply.dangerA = ply.dangerA + dt
+            end
+        else
+            if ply.dangerA > 0 then
+                ply.dangerA = ply.dangerA - dt * 0.85
+            end
+        end
+
         if not ply.isHDrop then
             if lk.isDown(keys.left) or lk.isDown(keys.right) then
                 if ply.dasTimer > ply.das then
@@ -1258,7 +1285,6 @@ function love.update(dt)
                 else
                     if not ply.isHDrop then
                         stats.stacks = stats.stacks + 1
-
                         bAdd(ply.x, ply.y, blocks, gMtrx)
 
                         --TODO: Add entry delay
@@ -1269,6 +1295,10 @@ function love.update(dt)
                     end
                 end
             end
+        end
+
+        if ply.isHDrop then
+            ply.isHDrop = false
         end
 
         for _, blk in ipairs(gMtrx) do
@@ -1298,6 +1328,7 @@ function love.update(dt)
             end
         end
 
+        -- line clear ui function
         for i, lnui in ipairs(stats.lClearUI) do
             if lnui.a > 0 then
                 lnui.a = lnui.a - dt * lnui.aSpd
@@ -1375,6 +1406,14 @@ function love.draw()
     )
     lg.setColor(.06, .06, .12, 1)
     lg.rectangle("fill", gBoard.x, gBoard.y + gBoard.h, gBoard.w * 10, gBoard.h * gBoard.gH - gBoard.h)
+
+    -- danger zone overlay
+    if settings.showDanger then
+        lg.setColor(1, 0.15, 0.15, ply.dangerA)
+        if not game.isFail then
+            lg.rectangle("fill", gBoard.x, gBoard.y + gBoard.w, gBoard.w * gBoard.visW, gBoard.h * (gBoard.visH - 1))
+        end
+    end
 
     if settings.showGrid then
         dGrid(gMtrx)
@@ -1460,7 +1499,7 @@ function love.draw()
         lg.printf("HOLD", fonts.othr, -60 - 8, gBoard.y + 26, 40, "right")
     end
 
-    -- line clear effects
+    -- line clear ui effects
     for i, lnui in ipairs(stats.lClearUI) do
         local clr = function()
             if not game.isFail then
@@ -1481,12 +1520,45 @@ function love.draw()
                 return { gCol.gray[1] + tCol, gCol.gray[2] + tCol, gCol.gray[3] + tCol }
             end
         end
+
+        local clrB = function()
+            if not game.isFail then
+                if settings.rotSys == "ARS" then
+                    return {
+                        -- duct tape
+                        { gCol.red[1] - .2, gCol.red[2] - .2, gCol.red[3] - .2 },
+                        {gCol.green[1] - .2, gCol.green[2] - .2, gCol.green[3] - .2},
+                        {gCol.purple[1] - .2, gCol.purple[2] - .2, gCol.purple[3] - .2},
+                        {gCol.orange[1] - .2, gCol.orange[2] - .2, gCol.orange[3] - .2},
+                        {gCol.blue[1] - .2, gCol.blue[2] - .2, gCol.blue[3] - .2},
+                        {gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2},
+                        {gCol.lBlue[1] - .2, gCol.lBlue [2] - .2, gCol.lBlue[3] - .2},
+                        C = cFAC.col[cFAC.index]
+                    }
+                end
+            else
+                local tCol = 0.35
+                return { gCol.gray[1] + tCol, gCol.gray[2] + tCol, gCol.gray[3] + tCol }
+            end
+        end
+
+        -- text background
         if not game.isFail then
             lg.setColor(clr()[lnui.cBlk][1], clr()[lnui.cBlk][2], clr()[lnui.cBlk][3], lnui.a)
         else
             lg.setColor(clr()[1], clr()[2], clr()[3], lnui.a)
         end
+
         lg.rectangle("fill", -52 - (35 * (i - 1)), gBoard.h * (gBoard.visH - 12), 30, 30)
+
+        -- backdrop text
+        if not game.isFail then
+            lg.setColor(clrB()[lnui.cBlk][1], clrB()[lnui.cBlk][2], clrB()[lnui.cBlk][3], lnui.a)
+            lg.printf(lnui.str, fonts.ui, -1210 - (35 * (i - 1)) + 2, gBoard.h * (gBoard.visH - 12) + 2, 1200 - 20,
+            "right")
+        end
+
+        -- front text
         lg.setColor(1, 1, 1, lnui.a)
         lg.printf(lnui.str, fonts.ui, -1210 - (35 * (i - 1)), gBoard.h * (gBoard.visH - 12), 1200 - 20, "right")
     end
