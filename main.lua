@@ -1,12 +1,14 @@
--- high score as of writing: 302k+, lv 12, ~07:00 time
+-- high score as of writing: 21850500, lv 110, 1100 lines, 35:33.42 time
 -- highest secret grade as of writing: s8, lv 1, 01:53.48 time (buggy)
 --TODO: Implement secret grade values
 local lg, lw, lk, lm = love.graphics, love.window, love.keyboard, love.mouse
 local lt, le = love.timer, love.event
+local lmth = love.math
 
 local wWd, wHg = lg.getWidth(), lg.getHeight()
 
 local tClear = require "table.clear"
+local lerp = require "lua.lerp"
 
 local fonts = {
     ui = lg.newFont("/assets/fonts/monogram-extended.TTF", 32),
@@ -26,6 +28,7 @@ local game = {
     isPaused = false,
     isPauseDelay = false,
     isFail = false,
+    useHold = false,
     showFailColors = false
 }
 
@@ -34,10 +37,15 @@ local settings = {
     showGrid = true,
     showOutlines = true,
     -- TODO: Implement hard drop effect
+    hDropEffect = true,
     coloredHDropEffect = true,
+    lineEffect = true,
+    lockEffect = true,
     scale = 1,
     -- TODO: Implement rotation system switching
     rotSys = "ARS",
+    -- broken for now
+    useIRS = false,
     isDebug = true,
 }
 
@@ -79,6 +87,7 @@ local ply = {
     bRot = 1,
     next = {},
     hold = 0,
+    isAlreadyHold = false,
 
     -- in milliseconds
     -- delay before autorepeat
@@ -91,11 +100,10 @@ local ply = {
     sdr = 5 / 1000,
     sdrTimer = 0,
 
-    --TODO: Implement IRS
     -- lock delay
     lDTimer = 0,
     isLDly = false,
-    lDelay = 500 / 1000,
+    lDelay = 1000 / 1000,
 
     -- line delay
     lnDlyTmr = 0,
@@ -107,7 +115,9 @@ local ply = {
 
     isHDrop = false,
     -- for hard drop effect
-    hDAlpha = 0
+    hDAlpha = 0,
+
+    blkLen = 1
 
     -- use two separate values for current block & placed blocks
     -- if block > height or active block > placed block = add block to placed blocks
@@ -142,7 +152,10 @@ local stats = {
     maxPPS = 0,
     -- for pause delay
     pTime = 0,
-    lClearUI = {}
+    lClearUI = {},
+    lEffect = {},
+    -- for locking effect
+    lkEfct = {}
 }
 
 for _ = 1, gBoard.gH, 1 do
@@ -160,7 +173,8 @@ local gCol = {
     lBlue = { .54, .86, .92 },
     white = { .80, .84, .96 },
     gray = { .35, .36, .44 },
-    gOutline = { .58, .60, .70 }
+    gOutline = { .58, .60, .70 },
+    nBox = { .58, .60, .70, .35 }
 }
 local gColD = {
     red = { gCol.red[1] - .35, gCol.red[2] - .35, gCol.red[3] - .35 },
@@ -288,22 +302,68 @@ local blocks = {
     },
 }
 
--- for animation
-local function lerp(a, b, t)
-    return a + t * (b - a)
+--TODO: Finish randomizer function
+local function bagInit(plyVar)
+    if plyVar.currBlk >= #blocks then
+        plyVar.currBlk = 1
+    else
+        plyVar.currBlk = plyVar.currBlk + 1
+    end
 end
 
-local function easeOutCubic(t)
-    return 1 - math.pow(1 - t, 3)
+local function bMove(tX, tY, tRot, mtrxTab)
+    if blocks[ply.currBlk][tRot] ~= nil then
+        for y = 1, #blocks[ply.currBlk][tRot] do
+            for x = 1, #blocks[ply.currBlk][tRot][y] do
+                local tX, tY = tX + x, tY + y
+                if blocks[ply.currBlk][tRot][y][x] ~= 0 and (
+                        tX < 1 or tX > gBoard.visW or tY > gBoard.visH or mtrxTab[tY][tX] ~= 0
+                    ) then
+                    return false
+                end
+            end
+        end
+    else
+        return false
+    end
+    return true
+end
+
+--TODO: Improve IRS function
+local function checkIRS(plyVar, blkTab)
+    if plyVar.bRot ~= 1 then
+        plyVar.bRot = 1
+    end
+    if settings.useIRS and not game.isFail and not game.isPauseDelay and not game.isPaused then
+        if plyVar.currBlk ~= 6 then
+            if lk.isDown(keys.ccw) then
+                if plyVar.bRot > 1 then
+                    plyVar.bRot = plyVar.bRot - 1
+                else
+                    plyVar.bRot = #blkTab[plyVar.currBlk]
+                end
+            end
+
+            if lk.isDown(keys.cw) then
+                if plyVar.bRot < #blkTab[plyVar.currBlk] then
+                    plyVar.bRot = plyVar.bRot + 1
+                else
+                    plyVar.bRot = 1
+                end
+            end
+        end
+    end
 end
 
 local function plyInit(plyVar)
-    plyVar.x, plyVar.y, plyVar.bRot = 3, 0, 1
+    plyVar.x, plyVar.y = 3, 0
+    checkIRS(ply, blocks)
     plyVar.lDTimer, plyVar.gTimer, plyVar.sdrTimer = 0, 0, 0
 end
 
 local function gameInit(plyVar, sts)
     plyVar.arrTimer, plyVar.dasTimer, plyVar.gTimer, plyVar.grav = 0, 0, 0, 1000 / 1000
+    plyVar.hold = 0
     sts.time = 0
     sts.stacks = 0
     sts.clr.sgl, sts.clr.dbl, sts.clr.trp, sts.clr.qd, sts.clr.ac = 0, 0, 0, 0, 0
@@ -324,7 +384,26 @@ local function mtrxClr(mtrxTab)
     end
 end
 
-local function dBlocks(bl, x, y, isGhost, isOutline, isHDEffect, HDAlpha)
+-- hold function
+local function holdFunc(plyVar)
+    if ply.hold == 0 then
+        plyVar.hold = plyVar.currBlk
+        bagInit(plyVar)
+    else
+        --TODO: Tempoary, replace with bag sequence
+        --- replace with first next block on queue
+        plyVar.currBlk = plyVar.hold
+        -- move current block to hold queue
+        plyVar.hold = plyVar.currBlk
+    end
+
+    -- reset player position
+    plyInit(plyVar)
+
+    plyVar.isAlreadyHold = true
+end
+
+local function dBlocks(bl, x, y, isGhost, isOutline, noColors)
     local colors = function()
         if settings.rotSys == "ARS" then
             return
@@ -341,24 +420,26 @@ local function dBlocks(bl, x, y, isGhost, isOutline, isHDEffect, HDAlpha)
         end
     end
     if bl ~= 0 then
-        if not game.isFail then
-            if isGhost then
-                lg.setColor(colors()[bl][1], colors()[bl][2], colors()[bl][3], 0.25)
-            else
-                lg.setColor(colors()[bl])
-            end
-        else
-            if not game.showFailColors then
-                if isGhost then
-                    lg.setColor(gCol.gray[1], gCol.gray[2], gCol.gray[3], 0.25)
-                else
-                    lg.setColor(gCol.gray)
-                end
-            else
+        if not noColors then
+            if not game.isFail then
                 if isGhost then
                     lg.setColor(colors()[bl][1], colors()[bl][2], colors()[bl][3], 0.25)
                 else
                     lg.setColor(colors()[bl])
+                end
+            else
+                if not game.showFailColors then
+                    if isGhost then
+                        lg.setColor(gCol.gray[1], gCol.gray[2], gCol.gray[3], 0.25)
+                    else
+                        lg.setColor(gCol.gray)
+                    end
+                else
+                    if isGhost then
+                        lg.setColor(colors()[bl][1], colors()[bl][2], colors()[bl][3], 0.25)
+                    else
+                        lg.setColor(colors()[bl])
+                    end
                 end
             end
         end
@@ -446,22 +527,180 @@ local function dOutline(mtrxTab, strokeWd)
     end
 end
 
-local function bMove(tX, tY, tRot, mtrxTab)
-    if blocks[ply.currBlk][tRot] ~= nil then
-        for y = 1, #blocks[ply.currBlk][tRot] do
-            for x = 1, #blocks[ply.currBlk][tRot][y] do
-                local tX, tY = tX + x, tY + y
-                if blocks[ply.currBlk][tRot][y][x] ~= 0 and (
-                        tX < 1 or tX > gBoard.visW or tY < 1 or tY > gBoard.visH or mtrxTab[tY][tX] ~= 0
-                    ) then
-                    return false
+-- next & hold box drawing
+-- use 3 next slots
+-- TODO: Finish randomizer function
+local function dNBox(blkTab, plyTab, isHold)
+    -- TODO: Tempoary, replace with bag sequence
+    local nBlk = plyTab.currBlk + 1
+    local hBlk = plyTab.hold
+
+    if nBlk > #blkTab then
+        nBlk = 1
+    end
+
+    if not game.isPaused then
+        if not isHold then
+            for y, _ in ipairs(blkTab[nBlk][1]) do
+                for x, blk in ipairs(blkTab[nBlk][1][y]) do
+                    dBlocks(blk, x + gBoard.visW + 1, y + 2, false, false, false)
                 end
+            end
+        else
+            if plyTab.hold ~= 0 then
+                for y, _ in ipairs(blkTab[hBlk][1]) do
+                    for x, blk in ipairs(blkTab[hBlk][1][y]) do
+                        dBlocks(blk, x + gBoard.x - 5, y + 2, false, false, false)
+                    end
+                end
+                lg.printf("(broken for now)", fonts.othr, -123, gBoard.y + 110, 160, "left")
+            end
+        end
+    end
+end
+
+-- next queue outline
+local function nxtCol(currBlk, isHold)
+    local nBlk = currBlk + 1
+    if nBlk > #blocks then
+        nBlk = 1
+    end
+    local cols = function()
+        if not game.isFail or game.showFailColors then
+            if settings.rotSys == "ARS" then
+                return {
+                    gray = gCol.gOutline,
+                    gCol.red,
+                    gCol.green,
+                    gCol.purple,
+                    gCol.orange,
+                    gCol.blue,
+                    gCol.yellow,
+                    gCol.lBlue,
+                }
+            end
+        else
+            if settings.rotSys == "ARS" then
+                return {
+                    gray = gCol.gOutline,
+                    gColD.red,
+                    gColD.green,
+                    gColD.purple,
+                    gColD.orange,
+                    gColD.blue,
+                    gColD.yellow,
+                    gColD.lBlue,
+                }
+            end
+        end
+    end
+    if not game.isPaused then
+        if not isHold then
+            return cols()[nBlk]
+        else
+            if currBlk ~= 0 then
+                return cols()[currBlk]
+            else
+                return cols().gray
             end
         end
     else
-        return false
+        return cols().gray
     end
-    return true
+end
+
+-- line clear effect
+local function newLineEffect(y, boardVar, lineEffectTab, isBoardFill, isScale)
+    if isBoardFill then
+        table.insert(lineEffectTab, {
+            x = boardVar.x,
+            y = boardVar.y + boardVar.h,
+            w = boardVar.w * boardVar.visW,
+            h = boardVar.h * boardVar.visH - boardVar.h,
+            a = 0.15,
+            isFill = true
+        })
+    elseif isScale then
+        table.insert(lineEffectTab, {
+            x = boardVar.x,
+            y = boardVar.y + (boardVar.h * y),
+            w = boardVar.w * boardVar.visW,
+            h = boardVar.h,
+            a = 1,
+            s = 1,
+            t = 0,
+            isScale = true
+        })
+    else
+        table.insert(lineEffectTab, {
+            x = boardVar.x,
+            y = boardVar.y + (boardVar.h * y),
+            w = boardVar.w * boardVar.visW,
+            h = boardVar.h,
+            a = 1
+        })
+    end
+end
+
+local function lEUpdate(lineEffectTab, dt)
+    for i, ln in ipairs(lineEffectTab) do
+        if ln.a > 0 then
+            if ln.isFill then
+                ln.a = ln.a - dt * 0.65
+            else
+                ln.a = ln.a - dt * 5
+            end
+            if ln.isScale then
+                ln.t = ln.t + dt * 0.5
+                ln.s = ln.s + (0.5 * lerp.easeOutQuart(0.65, 1, ln.t))
+            end
+        else
+            table.remove(lineEffectTab, i)
+        end
+    end
+end
+
+local function lEDraw(lineEffectTab)
+    for _, ln in ipairs(lineEffectTab) do
+        lg.setColor(1, 1, 1, ln.a)
+        if not ln.isScale then
+            lg.rectangle("fill", ln.x, ln.y, ln.w, ln.h)
+        else
+            lg.rectangle("fill", ln.x - ln.s, ln.y - ln.s, ln.w + (ln.s * 2), ln.h + (ln.s * 2))
+        end
+    end
+end
+
+-- piece locking effect
+local function newLockEffect(lockEffectTab, blkTab, plyTab)
+    table.insert(lockEffectTab, {
+        x = plyTab.x,
+        y = plyTab.y,
+        a = 1,
+        blk = blkTab[plyTab.currBlk][plyTab.bRot],
+        currBlk = plyTab.currblk
+    })
+end
+
+local function lkUpd(lockEffectTab, dt)
+    for i, lk in ipairs(lockEffectTab) do
+        if lk.a > 0 then
+            lk.a = lk.a - dt * 10
+        else
+            table.remove(lockEffectTab, i)
+        end
+    end
+end
+
+local function lkDrw(lockEffectTab)
+    for _, lk in ipairs(lockEffectTab) do
+        for y, _ in ipairs(lk.blk) do
+            for x, blk in ipairs(lk.blk[y]) do
+                lg.setColor(1, 1, 1, lk.a)
+                dBlocks(blk, x + lk.x, y + lk.y, false, false, true)
+            end
+        end
+    end
 end
 
 local function isAllClr(mtrxTab)
@@ -503,16 +742,18 @@ local function bRotate(tX, tY, bRot, mtrxTab)
         if blocks[ply.currBlk] ~= nil then
             local bLen = blocks[ply.currBlk]
             if #bLen > 1 then
-                if #bLen[bRot] <= 3 and bLen ~= 1 then -- not an I piece
-                    if not bMove(tX - 1, tY, bRot, mtrxTab) then
-                        ply.x = ply.x + 1
-                    end
-                    if not bMove(tX + 1, tY, bRot, mtrxTab) then
-                        ply.x = ply.x - 1
-                    end
-                else
-                    if not bMove(tX, tY, bRot, mtrxTab) then
-                        return false
+                if #bLen[bRot] <= 3 and bLen ~= 1 then -- not an O piece
+                    if ply.currBlk ~= 1 then           -- not an I piece
+                        if not bMove(tX - 1, tY, bRot, mtrxTab) then
+                            ply.x = ply.x + 1
+                        end
+                        if not bMove(tX + 1, tY, bRot, mtrxTab) then
+                            ply.x = ply.x - 1
+                        end
+                    else
+                        if not bMove(tX, tY, bRot, mtrxTab) then
+                            return false
+                        end
                     end
                 end
             end
@@ -544,6 +785,9 @@ local function bAdd(bX, bY, bL, mtrxTab)
             ply.currBlk .. " bRot: " .. ply.bRot .. " x: " .. ply.x .. " y: " .. ply.y .. " !!!")
     end
 
+    -- for hold function reserving
+    ply.isAlreadyHold = false
+
     -- for line clear function
     for y = 1, gBoard.visH do
         clear = true
@@ -555,6 +799,7 @@ local function bAdd(bX, bY, bL, mtrxTab)
         end
 
         if clear then
+            -- for offset
             stats.line = stats.line + 1
             stats.lineClr = stats.lineClr + 1
 
@@ -573,15 +818,32 @@ local function bAdd(bX, bY, bL, mtrxTab)
                 mtrxTab[1][clrX] = 0
                 clear = false
             end
+            if settings.lineEffect then
+                newLineEffect(y - 1, gBoard, stats.lEffect, false, true)
+            end
         end
     end
 
-    if cAnim then tClear(stats.lClearUI) end
+    if settings.lockEffect then
+        newLockEffect(stats.lkEfct, blocks, ply)
+    end
+
+    if cAnim then
+        tClear(stats.lClearUI)
+        if #stats.lkEfct > 0 then
+            tClear(stats.lkEfct)
+        end
+    end
 
     if isAllClr(mtrxTab) then
         print("+16000 score points from aClear")
         stats.scr = stats.scr + 16000
         stats.clr.ac = stats.clr.ac + 1
+
+        if settings.lineEffect then
+            newLineEffect(nil, gBoard, stats.lEffect, true, false)
+        end
+
         table.insert(stats.lClearUI, { str = "C", cBlk = "C", a = 1, aSpd = 0.5 })
     end
 
@@ -669,11 +931,45 @@ local function colFlashUpd(colVar, dt)
 end
 
 local cFStrk = colFlashNew(gCol.yellow, gCol.blue, 0.05)
-local cFCb = colFlashNew(gCol.yellow, gCol.white, 0.75)
+local cFCb = colFlashNew(gCol.yellow, gCol.white, 0.05)
 local cFAC = colFlashNew(gColD.yellow, gColD.lBlue, 0.1)
 
 local cFFail = colFlashNew(gCol.orange, gCol.red, .05)
 local cFFBG = colFlashNew(gColD.orange, gColD.red, .75)
+
+-- game ui fail colors
+local function failCol(isPPS)
+    if not isPPS then
+        if not game.isFail then
+            lg.setColor(1, 1, 1, 1)
+        else
+            local tCol = 0.35
+            lg.setColor(gCol.gray[1] + tCol, gCol.gray[2] + tCol, gCol.gray[3] + tCol)
+        end
+    else
+        if not game.isFail then
+            -- p/s colors
+            if stats.stacks / stats.time > 1.55 and stats.stacks / stats.time < 2.65 then
+                lg.setColor(gCol.yellow)
+            end
+            if stats.stacks / stats.time > 2.65 and stats.stacks / stats.time < 3 then
+                lg.setColor(gCol.lBlue[1] + .1, gCol.lBlue[2] + .2, 1)
+            end
+            if stats.stacks / stats.time > 3 and stats.stacks / stats.time < 4 then
+                lg.setColor(gCol.red[1] + .3, gCol.red[2], gCol.red[3])
+            end
+            if stats.stacks / stats.time > 4 then
+                lg.setColor(gCol.purple[1] + .4, gCol.purple[2] - .1, gCol.purple[3] + 0.1)
+            end
+            if stats.stacks / stats.time < 1.55 then
+                lg.setColor(1, 1, 1, 1)
+            end
+        else
+            local tCol = 0.35
+            lg.setColor(gCol.gray[1] + tCol, gCol.gray[2] + tCol, gCol.gray[3] + tCol)
+        end
+    end
+end
 
 function love.load()
     lg.setBackgroundColor(gCol.bg)
@@ -728,6 +1024,24 @@ function love.keypressed(k)
         -- TODO: Implement hard drop animation (trails of current obj)
         if k == keys.hDrop then
             ply.isHDrop = true
+            while bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) do
+                ply.y = ply.y + 1
+            end
+            ply.arrTimer = 0
+            ply.sdrTimer = 0
+            ply.lDTimer = ply.lDelay
+            ply.gTimer = ply.grav + (gBoard.visH + 5)
+            bAdd(ply.x, ply.y, blocks, gMtrx)
+
+            if settings.hDropEffect then
+            end
+
+            bagInit(ply)
+            plyInit(ply)
+
+            stats.stacks = stats.stacks + 1
+
+            ply.isHDrop = false
         end
 
         if k == keys.ccw then
@@ -755,7 +1069,16 @@ function love.keypressed(k)
                 ply.sdrTimer = 0
                 ply.y = ply.y + 1
             else
-                ply.gTimer = ply.grav
+                if ply.gTimer < ply.grav then
+                    ply.gTimer = ply.grav
+                end
+            end
+        end
+
+        -- hold key function
+        if k == keys.hold and game.useHold then
+            if not ply.isAlreadyHold then
+                holdFunc(ply)
             end
         end
     end
@@ -766,6 +1089,7 @@ function love.keypressed(k)
             game.showFailColors = false
             gameInit(ply, stats)
             mtrxClr(gMtrx)
+            bagInit(ply)
             plyInit(ply)
         end
         if k == "i" then
@@ -778,38 +1102,30 @@ function love.keypressed(k)
     end
 
     -- ### below is for debug only ###
-    if not game.isFail then
+    if not game.isFail and not game.isPaused and not game.isPauseDelay then
         if k == "r" then
             plyInit(ply)
             settings.scale = 1
         end
 
-        if k == "o" then
-            plyInit(ply)
-            if #blocks[ply.currBlk] > 1 then
-                if bMove(ply.x, ply.y, ply.bRot + 1, gMtrx) then
-                    if ply.currBlk < #blocks then
-                        ply.currBlk = ply.currBlk + 1
-                    else
-                        ply.currBlk = 1
-                    end
-                end
-            else
-                if bMove(ply.x, ply.y, ply.bRot, gMtrx) then
-                    if ply.currBlk < #blocks then
-                        ply.currBlk = ply.currBlk + 1
-                    else
-                        ply.currBlk = 1
-                    end
-                end
-            end
-        end
-
         if k == "e" then
+            bagInit(ply)
             plyInit(ply)
             mtrxClr(gMtrx)
             settings.scale = 1
         end
+
+        if k == "i" then
+            if not game.useHold then
+                game.useHold = true
+            else
+                game.useHold = false
+            end
+        end
+
+        -- if k == "o" then
+        --     ply.currBlk = 1
+        -- end
     end
 
     if k == "f4" then
@@ -858,10 +1174,22 @@ function love.update(dt)
         end
     end
 
+    for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
+        for x, blk in ipairs(blocks[ply.currBlk][ply.bRot][y]) do
+            if blk ~= 0 then
+                ply.blkLen = x
+            end
+        end
+    end
+
     if not game.isPaused and not game.isPauseDelay and not game.isFail then
         stats.time = stats.time + dt
         stats.timeDisp = string.format("%02d", math.floor(stats.time / 60)) ..
             ":" .. string.format("%02d", stats.time % 60) .. "." .. string.format("%.2f", tMs):sub(3, -1)
+
+        -- line effect
+        lEUpdate(stats.lEffect, dt)
+        lkUpd(stats.lkEfct, dt)
 
         if not ply.isHDrop then
             if lk.isDown(keys.left) or lk.isDown(keys.right) then
@@ -895,7 +1223,9 @@ function love.update(dt)
             else
                 if bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) then
                     ply.y = ply.y + 1
-                    ply.sdrTimer = 0
+                    if ply.sdrTimer > ply.sdr then
+                        ply.sdrTimer = 0
+                    end
                 else
                     if settings.rotSys == "ARS" then
                         if ply.gTimer < ply.grav then
@@ -910,27 +1240,32 @@ function love.update(dt)
             end
         end
 
-        if ply.gTimer <= ply.grav then
-            ply.gTimer = ply.gTimer + dt
+        if ply.gTimer <= ply.grav and bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) then
+            if not ply.isHDrop then
+                ply.gTimer = ply.gTimer + dt
+                ply.lDTimer = 0
+            end
         else
+            if not ply.isHDrop then
+                ply.gTimer = 0
+            end
             if bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) then
                 ply.y = ply.y + 1
                 ply.lDTimer = 0
-                ply.gTimer = 0
             else
                 if ply.lDTimer < ply.lDelay then
                     ply.lDTimer = ply.lDTimer + dt
                 else
-                    stats.stacks = stats.stacks + 1
                     if not ply.isHDrop then
+                        stats.stacks = stats.stacks + 1
+
                         bAdd(ply.x, ply.y, blocks, gMtrx)
-                    end
 
-                    ply.isHDrop = false
-
-                    --TODO: Add entry delay
-                    if not game.isFail then
-                        plyInit(ply)
+                        --TODO: Add entry delay
+                        if not game.isFail then
+                            bagInit(ply)
+                            plyInit(ply)
+                        end
                     end
                 end
             end
@@ -952,13 +1287,15 @@ function love.update(dt)
         end
 
         -- TODO: Is this delay reasonable?
-        if stats.maxPPS < stats.stacks / stats.time and stats.time > 0.5 then
+        if stats.maxPPS < stats.stacks / stats.time and stats.time > 0.25 then
             stats.maxPPS = stats.stacks / stats.time
         end
 
-        -- workaround for test
-        if ply.bRot > #blocks[ply.currBlk] then
-            ply.bRot = 1
+        -- workaround for rotation
+        if blocks[ply.currBlk] ~= nil then
+            if ply.bRot > #blocks[ply.currBlk] then
+                ply.bRot = 1
+            end
         end
 
         for i, lnui in ipairs(stats.lClearUI) do
@@ -975,28 +1312,29 @@ function love.update(dt)
         colFlashUpd(cFAC, dt)
     end
 
+
     if not game.isPaused and not game.isPauseDelay then
+        -- game fail function
         if isGFail(gMtrx) then
             game.isFail = true
-            ply.isHDrop = false
-        end
-        if ply.isHDrop then
-            -- increase width for hard drop effect in separate variable
-            -- store width & current position values to table
-            -- after storing values to table, reset current unstored value for width to 0
-            -- stored variable is used for width of current object & current players position of block
-            -- rinse and repeat
-            --TODO: Implement above
-            --TODO: Implement sonic drop?
-            while bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) do
-                ply.y = ply.y + 1
-                ply.sdrTimer = 0
-                ply.arrTimer = 0
+            if #stats.lEffect > 0 then
+                tClear(stats.lEffect)
             end
-            ply.gTimer = ply.grav + (gBoard.visH + 5)
-            ply.lDTimer = ply.lDelay
-            bAdd(ply.x, ply.y, blocks, gMtrx)
+            if #stats.lkEfct > 0 then
+                tClear(stats.lkEfct)
+            end
+            if ply.isHDrop then
+                ply.isHDrop = false
+            end
         end
+
+        -- increase width for hard drop effect in separate variable
+        -- store width & current position values to table
+        -- after storing values to table, reset current unstored value for width to 0
+        -- stored variable is used for width of current object & current players position of block
+        -- rinse and repeat
+
+        -- game fail function
         if game.isFail then
             plyInit(ply)
         end
@@ -1004,7 +1342,6 @@ function love.update(dt)
         -- for fail text
         colFlashUpd(cFFail, dt)
     end
-
 
     if lk.isDown("-") then
         settings.scale = settings.scale - dt
@@ -1015,8 +1352,21 @@ function love.update(dt)
     end
 end
 
+-- pause stats
+local function dPStats(xOff, yOff)
+    lg.printf(
+        { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
+            .yellow,
+            " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white, "   |  ",
+            gCol
+                .orange, " all clears: ", gCol.white, stats.clr.ac, gCol.red, " max comb. ", gCol.orange, "&", gCol
+            .purple, " strk: ", gCol.white, "x" ..
+        stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "max spd.: ", gCol.white,
+            string.format("%.2f", stats.maxPPS) .. " p/s" }, fonts.othr, 0 + xOff, wHg - 30 + yOff, wWd, "center")
+end
+
 function love.draw()
-    -- board matrix
+    -- game board
     lg.push()
     lg.scale(settings.scale, settings.scale)
     lg.translate(
@@ -1029,6 +1379,7 @@ function love.draw()
     if settings.showGrid then
         dGrid(gMtrx)
     end
+
     if not game.isPaused then
         if settings.showOutlines then
             dOutline(gMtrx, 2)
@@ -1057,71 +1408,139 @@ function love.draw()
         end
     end
 
-    lg.setColor(1, 1, 1, 1)
-    lg.printf("SCORE\n", fonts.othr, -60, gBoard.h * (gBoard.visH - 2.35), 40, "right")
+    lEDraw(stats.lEffect)
+    lkDrw(stats.lkEfct)
+
+    -- game ui
+    failCol(false)
+    lg.printf("SCORE", fonts.othr, -60, gBoard.h * (gBoard.visH - 2.35), 40, "right")
     lg.printf(stats.scr, fonts.ui, -1200, gBoard.h * (gBoard.visH - 1.85), 1200 - 20, "right")
 
-    lg.printf("LV.\n", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 6.15), 40, "left")
+    lg.printf("LV.", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 6.15), 40, "left")
     lg.printf(stats.lv, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 5.65), 1200, "left")
 
-    lg.printf("LINES\n", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 3.65), 40, "left")
+    lg.printf("LINES", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 3.65), 40, "left")
     lg.printf(stats.line, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 3.15), 1200, "left")
 
+    failCol(true)
     lg.printf(string.format("%.2f", stats.stacks / stats.time) .. " p/s", fonts.othr, gBoard.w * (gBoard.visW + 0.85),
         gBoard.h * (gBoard.visH - 1.35), 1200, "left")
 
+    failCol(false)
     lg.printf(stats.timeDisp, fonts.time, gBoard.x,
         gBoard.h * (gBoard.visH + 0.35), gBoard.w * gBoard.visW, "center")
 
+    -- next frame text
+    lg.setColor(gCol.nBox)
+    lg.rectangle("fill", gBoard.w * (gBoard.visW + 1), gBoard.y + 20, 80, 23)
+
+    lg.setColor(nxtCol(ply.currBlk, false))
+    lg.rectangle("fill", gBoard.w * (gBoard.visW + 1), gBoard.y + 20, 3, 23)
+
+    -- hold frame text
+    if game.useHold then
+        lg.setColor(gCol.nBox)
+        lg.rectangle("fill", -60 - (80 / 2), gBoard.y + 20, 80, 23)
+    end
+
+    if game.useHold then
+        lg.setColor(nxtCol(ply.hold, true))
+        lg.rectangle("fill", -23, gBoard.y + 20, 3, 23)
+    end
+
+    -- hold & next boxes
+    dNBox(blocks, ply, false)
+    if game.useHold then
+        dNBox(blocks, ply, true)
+    end
+
+    failCol(false)
+    lg.printf("NEXT", fonts.othr, gBoard.w * (gBoard.visW + 1.5), gBoard.y + 26, 40, "left")
+    if game.useHold then
+        lg.printf("HOLD", fonts.othr, -60 - 8, gBoard.y + 26, 40, "right")
+    end
+
+    -- line clear effects
     for i, lnui in ipairs(stats.lClearUI) do
         local clr = function()
-            if settings.rotSys == "ARS" then
-                return {
-                    gColD.red,
-                    gColD.green,
-                    gColD.purple,
-                    gColD.orange,
-                    gColD.blue,
-                    gColD.yellow,
-                    gColD.lBlue,
-                    C = cFAC.col[cFAC.index]
-                }
+            if not game.isFail then
+                if settings.rotSys == "ARS" then
+                    return {
+                        gColD.red,
+                        gColD.green,
+                        gColD.purple,
+                        gColD.orange,
+                        gColD.blue,
+                        gColD.yellow,
+                        gColD.lBlue,
+                        C = cFAC.col[cFAC.index]
+                    }
+                end
+            else
+                local tCol = 0.35
+                return { gCol.gray[1] + tCol, gCol.gray[2] + tCol, gCol.gray[3] + tCol }
             end
         end
-        lg.setColor(clr()[lnui.cBlk][1], clr()[lnui.cBlk][2], clr()[lnui.cBlk][3], lnui.a)
+        if not game.isFail then
+            lg.setColor(clr()[lnui.cBlk][1], clr()[lnui.cBlk][2], clr()[lnui.cBlk][3], lnui.a)
+        else
+            lg.setColor(clr()[1], clr()[2], clr()[3], lnui.a)
+        end
         lg.rectangle("fill", -52 - (35 * (i - 1)), gBoard.h * (gBoard.visH - 12), 30, 30)
         lg.setColor(1, 1, 1, lnui.a)
         lg.printf(lnui.str, fonts.ui, -1210 - (35 * (i - 1)), gBoard.h * (gBoard.visH - 12), 1200 - 20, "right")
     end
 
+    -- combo & streak ui
     if stats.strk > 1 then
-        lg.setColor(cFStrk.col[cFStrk.index][1], cFStrk.col[cFStrk.index][2], cFStrk.col[cFStrk.index][3])
+        if not game.isFail then
+            lg.setColor(cFStrk.col[cFStrk.index][1], cFStrk.col[cFStrk.index][2], cFStrk.col[cFStrk.index][3])
+        end
         lg.printf("STK. x" .. stats.strk - 1, fonts.othr, -1200, gBoard.h * (gBoard.visH - 9), 1200 - 20, "right")
     end
 
     if stats.comb > 1 then
-        lg.setColor(cFCb.col[cFCb.index][1], cFCb.col[cFCb.index][2], cFCb.col[cFCb.index][3])
+        if not game.isFail then
+            lg.setColor(cFCb.col[cFCb.index][1], cFCb.col[cFCb.index][2], cFCb.col[cFCb.index][3])
+        end
         lg.printf("COMBO x" .. stats.comb - 1, fonts.othr, -1200, gBoard.h * (gBoard.visH - 9.75), 1200 - 20, "right")
     end
 
+    -- board frame
     lg.setColor(0.7, 0.7, 0.7, 1)
     lg.rectangle("line", gBoard.x, gBoard.y + gBoard.h, gBoard.w * 10, gBoard.h * gBoard.gH - gBoard.gH)
+
+    -- ghost piece
     if not game.isPaused then
         bGhost(gMtrx, false)
         bGhost(gMtrx, true)
     end
+
+    -- pause delay screen
     if game.isPauseDelay then
-        lg.setColor(gCol.gray)
+        local pbCol = function(isAlpha, isInner)
+            if isAlpha then
+                return { gCol.white[1] + 0.25, gCol.white[2] + 0.25, gCol.white[3] + 0.25,
+                    lerp.easeOutCubic(0, 1, stats.pTime) }
+            elseif isInner then
+                return gCol.gray
+            else
+                return { gCol.gOutline[1] - 0.4, gCol.gOutline[2] - 0.4, gCol.gOutline[3] - 0.4 }
+            end
+        end
+        lg.setColor(pbCol(false, false))
         lg.rectangle("fill", gBoard.x + 10 - 2, (gBoard.y + gBoard.h * gBoard.visH) / 2 - 2,
             (gBoard.w * gBoard.visW) - 20 + 4, 20 + 4)
-        lg.setColor(gCol.gOutline[1], gCol.gOutline[2], gCol.gOutline[3], 0.25)
+        lg.setColor(pbCol(false, true))
         lg.rectangle("fill", gBoard.x + 10, (gBoard.y + gBoard.h * gBoard.visH) / 2,
             (gBoard.w * gBoard.visW) - 20, 20)
 
-        lg.setColor(gCol.white[1], gCol.white[2], gCol.white[3], lerp(0.5, 1, easeOutCubic(stats.pTime)))
+        lg.setColor(pbCol(true, false))
         lg.rectangle("fill", gBoard.x + 10, (gBoard.y + gBoard.h * gBoard.visH) / 2,
-            (gBoard.w * gBoard.visW) * lerp(0, 1, easeOutCubic(stats.pTime)) - 20, 20)
+            (gBoard.w * gBoard.visW) * lerp.easeOutCubic(0, 1, stats.pTime) - 20, 20)
     end
+
+    -- fail screen
     if game.isFail then
         lg.setColor(cFFBG.col[cFFail.index])
         lg.printf("GAME\nOVER", fonts.beeg, gBoard.x + 2, (gBoard.y + (gBoard.h * gBoard.visH)) / 2.63 + 2,
@@ -1143,6 +1562,15 @@ function love.draw()
     end
     lg.pop()
 
+    -- stats in fail screen
+    if game.isFail then
+        lg.setColor(gCol.bg)
+        dPStats(2, 2)
+        lg.setColor(1, 1, 1, 1)
+        dPStats(0, 0)
+    end
+
+    -- pause menu
     if game.isPaused then
         lg.setColor(gCol.bg)
         lg.setColor(0, 0, 0, 0.45)
@@ -1154,45 +1582,16 @@ function love.draw()
         lg.setColor(gCol.bg)
         lg.rectangle("fill", 0, wHg - 50, wWd, 50)
         lg.setColor(1, 1, 1, 1)
-        lg.printf(
-            { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
-                .yellow,
-                " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white, "   |  ",
-                gCol
-                    .orange, " all clears: ", gCol.white, stats.clr.ac, gCol.red, " max comb. ", gCol.orange, "&", gCol
-                .purple, " strk: ", gCol.white, "x" ..
-            stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "max spd.: ", gCol.white,
-                string.format("%.2f", stats.maxPPS) .. " p/s" }, fonts.othr, 0, wHg - 30, wWd, "center")
+        dPStats(0, 0)
     else
+        -- info txt
         if settings.showInfo and not game.isFail then
             lg.setColor(gCol.gray)
             lg.printf("very unstable!!\nexpect some crashes", fonts.othr, 0, wHg - 40, wWd - 20, "right")
         end
     end
 
-    if game.isFail then
-        lg.setColor(gCol.bg)
-        lg.printf(
-            { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
-                .yellow,
-                " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white, "   |  ",
-                gCol
-                    .orange, " all clears: ", gCol.white, stats.clr.ac, gCol.red, " max comb. ", gCol.orange, "&", gCol
-                .purple, " strk: ", gCol.white, "x" ..
-            stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "max spd.: ", gCol.white,
-                string.format("%.2f", stats.maxPPS) .. " p/s" }, fonts.othr, 0 + 1, wHg - 30 + 1, wWd, "center")
-        lg.setColor(1, 1, 1, 1)
-        lg.printf(
-            { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
-                .yellow,
-                " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white, "   |  ",
-                gCol
-                    .orange, " all clears: ", gCol.white, stats.clr.ac, gCol.red, " max comb. ", gCol.orange, "&", gCol
-                .purple, " strk: ", gCol.white, "x" ..
-            stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "max spd.: ", gCol.white,
-                string.format("%.2f", stats.maxPPS) .. " p/s" }, fonts.othr, 0, wHg - 30, wWd, "center")
-    end
-
+    -- debug
     lg.setColor(1, 1, 1, 1)
     if settings.isDebug then
         lg.print(
@@ -1200,7 +1599,17 @@ function love.draw()
             " FPS\n" ..
             wWd ..
             "x" ..
-            wHg .. "\n" .. lg.getStats().drawcalls .. " draws / " .. lg.getStats().texturememory / 1024 / 1024 .. " MB",
+            wHg ..
+            "\n" ..
+            lg.getStats().drawcalls ..
+            " draws / " ..
+            lg.getStats().texturememory / 1024 / 1024 ..
+            " MB" ..
+            "\nsc: " ..
+            settings.scale ..
+            "\nlEffect: " ..
+            #stats.lEffect ..
+            "\nlkEfct: " .. #stats.lkEfct .. "\nuseHold: " .. tostring(game.useHold) .. "\nblkLen: " .. ply.blkLen,
             fonts.othr, 10, 10)
         lg.printf(
             "x: " ..
@@ -1223,7 +1632,7 @@ function love.draw()
             "\nlDTimer: " ..
             ply.lDTimer ..
             "\nisHDrop: " ..
-            tostring(ply.isHDrop) ..
+            tostring(ply.isHDrop) .. "\nisAlreadyHold: " .. tostring(ply.isAlreadyHold) ..
             "\nisPaused: " .. tostring(game.isPaused) .. "\nisPauseDelay: " .. tostring(game.isPauseDelay) ..
             "\nrotSys: " .. settings.rotSys .. "\nstacks: " .. stats.stacks .. "\nisFail: " .. tostring(game.isFail) ..
             "\nsg: " ..
