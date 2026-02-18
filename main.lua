@@ -1,6 +1,6 @@
 -- high score as of writing: 21850500, lv 110, 1100 lines, 35:33.42 time
 -- highest secret grade as of writing: s8, lv 8, 75 lines, 03:33.64 time (with current version's settings)
---TODO: Implement secret grade values
+
 local lg, lw, lk, lm = love.graphics, love.window, love.keyboard, love.mouse
 local lt, le = love.timer, love.event
 local lmth = love.math
@@ -9,6 +9,7 @@ local wWd, wHg = lg.getWidth(), lg.getHeight()
 
 local tClear = require "table.clear"
 local lerp = require "lua.lerp"
+local gTable = require "lua.tables"
 
 local fonts = {
     ui = lg.newFont("/assets/fonts/monogram-extended.TTF", 32),
@@ -30,23 +31,23 @@ local game = {
     isPauseDelay = false,
     isFail = false,
     useHold = false,
-    showFailColors = false
+    showFailColors = false,
+    isGravityInc = true
 }
 
 local settings = {
     showInfo = true,
     showGrid = true,
     showOutlines = true,
-    -- TODO: Implement hard drop effect
     hDropEffect = true,
-    coloredHDropEffect = true,
+    coloredHDropEffect = false,
     lineEffect = true,
     lockEffect = true,
     showDanger = true,
     scale = 1,
     -- TODO: Implement rotation system switching
     rotSys = "ARS",
-    -- broken for now
+    -- works best with line clear delay
     useIRS = false,
     isDebug = true,
 }
@@ -113,12 +114,10 @@ local ply = {
 
     -- gravity
     gTimer = 0,
-    grav = 1000 / 1000,
+    grav = gTable.grav[1],
 
     isHDrop = false,
     dangerA = 0,
-
-    blkLen = 1
 
     -- use two separate values for current block & placed blocks
     -- if block > height or active block > placed block = add block to placed blocks
@@ -156,7 +155,9 @@ local stats = {
     lClearUI = {},
     lEffect = {},
     -- for locking effect
-    lkEfct = {}
+    lkEfct = {},
+    -- for hard drop effect
+    hDEfct = {}
 }
 
 for _ = 1, gBoard.gH, 1 do
@@ -317,13 +318,14 @@ local function bMove(tX, tY, tRot, mtrxTab)
         for y = 1, #blocks[ply.currBlk][tRot] do
             for x = 1, #blocks[ply.currBlk][tRot][y] do
                 local tX, tY = tX + x, tY + y
-                if blocks[ply.currBlk][tRot][y][x] ~= 0 and (
-                        tX < 1 or tX > gBoard.visW or tY > gBoard.visH
-                    ) then
-                    return false
-                end
-                if blocks[ply.currBlk][tRot][y][x] ~= 0 and mtrxTab[tY][tX] ~= 0 then
-                    return false
+                if blocks[ply.currBlk][tRot][y][x] ~= 0 then
+                    if tX < 1 or tX > gBoard.visW or tY > gBoard.visH then
+                        return false
+                    else
+                        if mtrxTab[tY][tX] ~= 0 then
+                            return false
+                        end
+                    end
                 end
             end
         end
@@ -333,7 +335,7 @@ local function bMove(tX, tY, tRot, mtrxTab)
     return true
 end
 
---TODO: Improve IRS function
+--TODO: Improve IRS function?
 local function checkIRS(plyVar, blkTab)
     if plyVar.bRot ~= 1 then
         plyVar.bRot = 1
@@ -366,7 +368,7 @@ local function plyInit(plyVar)
 end
 
 local function gameInit(plyVar, sts)
-    plyVar.arrTimer, plyVar.dasTimer, plyVar.gTimer, plyVar.grav = 0, 0, 0, 1000 / 1000
+    plyVar.arrTimer, plyVar.dasTimer, plyVar.gTimer, plyVar.grav = 0, 0, 0, gTable.grav[1]
     plyVar.hold = 0
     plyVar.dangerA = 0
     sts.time = 0
@@ -408,7 +410,15 @@ local function holdFunc(plyVar)
     plyVar.isAlreadyHold = true
 end
 
-local function dBlocks(bl, x, y, isGhost, isOutline, noColors)
+local function lowestCells(plyVar, mtrxTab)
+    local tX, tY = plyVar.x, plyVar.y
+    while bMove(tX, tY + 1, plyVar.bRot, mtrxTab) do
+        tY = tY + 1
+    end
+    return tY
+end
+
+local function dBlocks(bl, x, y, isGhost, isOutline, noColors, lDlyFade, isHDrop, hdAlp, hdHgt)
     local colors = function()
         if settings.rotSys == "ARS" then
             return
@@ -429,6 +439,15 @@ local function dBlocks(bl, x, y, isGhost, isOutline, noColors)
             if not game.isFail then
                 if isGhost then
                     lg.setColor(colors()[bl][1], colors()[bl][2], colors()[bl][3], 0.25)
+                elseif lDlyFade then
+                    if ply.lDTimer > 0 then
+                        lg.setColor(colors()[bl][1], colors()[bl][2], colors()[bl][3],
+                            ply.lDTimer + 0.1 / ply.lDelay + 0.1)
+                    else
+                        lg.setColor(colors()[bl])
+                    end
+                elseif hdAlp ~= nil then
+                    lg.setColor(colors()[bl][1], colors()[bl][2], colors()[bl][3], hdAlp)
                 else
                     lg.setColor(colors()[bl])
                 end
@@ -447,6 +466,11 @@ local function dBlocks(bl, x, y, isGhost, isOutline, noColors)
                     end
                 end
             end
+        end
+
+        if isHDrop then
+            lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w,
+                gBoard.h * hdHgt)
         end
 
         if not isOutline then
@@ -677,20 +701,34 @@ local function lEDraw(lineEffectTab)
 end
 
 -- piece locking effect
-local function newLockEffect(lockEffectTab, blkTab, plyTab)
-    table.insert(lockEffectTab, {
-        x = plyTab.x,
-        y = plyTab.y,
-        a = 1,
-        blk = blkTab[plyTab.currBlk][plyTab.bRot],
-        currBlk = plyTab.currblk
-    })
+local function newLockEffect(lockEffectTab, blkTab, plyTab, isHDrop)
+    if isHDrop then
+        table.insert(lockEffectTab, {
+            x = plyTab.x,
+            y = plyTab.y,
+            h = lowestCells(ply, gMtrx),
+            a = 0.15,
+            blk = blkTab[plyTab.currBlk][plyTab.bRot],
+            HDrop = true
+        })
+    else
+        table.insert(lockEffectTab, {
+            x = plyTab.x,
+            y = plyTab.y,
+            a = 1,
+            blk = blkTab[plyTab.currBlk][plyTab.bRot],
+        })
+    end
 end
 
 local function lkUpd(lockEffectTab, dt)
     for i, lk in ipairs(lockEffectTab) do
         if lk.a > 0 then
-            lk.a = lk.a - dt * 7
+            if not lk.HDrop then
+                lk.a = lk.a - dt * 7
+            else
+                lk.a = lk.a - dt
+            end
         else
             table.remove(lockEffectTab, i)
         end
@@ -702,7 +740,26 @@ local function lkDrw(lockEffectTab)
         for y, _ in ipairs(lk.blk) do
             for x, blk in ipairs(lk.blk[y]) do
                 lg.setColor(1, 1, 1, lk.a)
-                dBlocks(blk, x + lk.x, y + lk.y, false, false, true)
+                if not lk.HDrop then
+                    dBlocks(blk, x + lk.x, y + lk.y, false, false, true)
+                end
+            end
+        end
+    end
+end
+
+local function hDDrw(lockEffectTab)
+    for _, lk in ipairs(lockEffectTab) do
+        for y, _ in ipairs(lk.blk) do
+            for x, blk in ipairs(lk.blk[y]) do
+                if lk.HDrop then
+                    if not settings.coloredHDropEffect then
+                        lg.setColor(1, 1, 1, lk.a)
+                        dBlocks(blk, x + lk.x, gBoard.y + y, false, false, true, false, true, nil, lk.h)
+                    else
+                        dBlocks(blk, x + lk.x, gBoard.y + y, false, false, false, false, true, lk.a, lk.h)
+                    end
+                end
             end
         end
     end
@@ -742,7 +799,7 @@ end
 
 -- for wall kicks
 local function bRotate(tX, tY, bRot, mtrxTab)
-    -- TODO: Is this checks correct?
+    -- TODO: Fix wrong wallkicks
     if settings.rotSys == "ARS" then
         if blocks[ply.currBlk] ~= nil then
             local bLen = blocks[ply.currBlk]
@@ -830,7 +887,7 @@ local function bAdd(bX, bY, bL, mtrxTab)
     end
 
     if settings.lockEffect then
-        newLockEffect(stats.lkEfct, blocks, ply)
+        newLockEffect(stats.lkEfct, blocks, ply, false)
     end
 
     if cAnim then
@@ -878,6 +935,18 @@ local function bAdd(bX, bY, bL, mtrxTab)
         end
         if stats.line > stats.nxtLines then
             stats.lv = stats.lv + 1
+
+            -- gravity increase function
+            if game.isGravityInc then
+                if stats.lv < #gTable.grav then
+                    ply.grav = gTable.grav[stats.lv]
+                    print("increased gravity (grav: " .. ply.grav .. ")")
+                else
+                    ply.grav = 0
+                    print("stopped increasing gravity (grav: " .. ply.grav .. ")")
+                end
+            end
+
             stats.nxtLines = stats.nxtLines + 10
         end
         stats.lineClr = 0
@@ -912,12 +981,18 @@ end
 
 -- danger zone (near failure) check
 local function dangerCheck(mtrxTab)
-    local dangerY = 7 -- offset from first row, then 7 == 6 from first row
+    local dangerY = 8 -- offset by -2, then 8 == 6 from first row
     for y, _ in ipairs(mtrxTab) do
         for x, _ in ipairs(mtrxTab[y]) do
-            if x > math.floor(gBoard.visW / 3) and x < gBoard.visW - (math.floor(gBoard.visW / 3)) and y < dangerY then
-                if mtrxTab[y][x] ~= 0 then
-                    return true
+            if x > math.floor(gBoard.visW / 6) and x < gBoard.visW - (math.floor(gBoard.visW / 6)) then
+                if y > dangerY - 2 and y < dangerY then
+                    if mtrxTab[y][x] ~= 0 then
+                        return 1
+                    end
+                elseif y < dangerY - 2 then
+                    if mtrxTab[y][x] ~= 0 then
+                        return 2
+                    end
                 end
             end
         end
@@ -992,6 +1067,12 @@ local function failCol(isPPS)
 end
 
 function love.load()
+    lg.clear()
+    lg.setColor(gCol.bg)
+    lg.rectangle("fill", 0, 0, wWd, wHg)
+    lg.setColor(1, 1, 1, 1)
+    lg.printf("Loading..", fonts.ui, 0, wHg / 2, wWd, "center")
+    love.graphics.present()
     lg.setBackgroundColor(gCol.bg)
     lm.setVisible(false)
 end
@@ -1041,23 +1122,30 @@ function love.keypressed(k)
             end
         end
 
-        -- TODO: Implement hard drop animation (trails of current obj)
         if k == keys.hDrop then
             -- so many edge cases
-            ply.gTimer = 0
-            ply.lDTimer = 0
-            ply.isHDrop = true
+            if settings.hDropEffect and bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) then
+                newLockEffect(stats.hDEfct, blocks, ply, true)
+            end
+
             while bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) do
                 ply.y = ply.y + 1
             end
-            ply.arrTimer = 0
-            ply.sdrTimer = 0
+
             bAdd(ply.x, ply.y, blocks, gMtrx)
+
+            ply.isHDrop = true
 
             bagInit(ply)
             plyInit(ply)
 
             stats.stacks = stats.stacks + 1
+
+            ply.gTimer = 0
+            ply.lDTimer = 0
+
+            ply.arrTimer = 0
+            ply.sdrTimer = 0
         end
 
         if k == keys.ccw then
@@ -1121,13 +1209,15 @@ function love.keypressed(k)
     if not game.isFail and not game.isPaused and not game.isPauseDelay then
         if k == "r" then
             plyInit(ply)
-            settings.scale = 1
         end
 
         if k == "e" then
             bagInit(ply)
             plyInit(ply)
             mtrxClr(gMtrx)
+        end
+
+        if k == "0" then
             settings.scale = 1
         end
 
@@ -1190,14 +1280,6 @@ function love.update(dt)
         end
     end
 
-    for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
-        for x, blk in ipairs(blocks[ply.currBlk][ply.bRot][y]) do
-            if blk ~= 0 then
-                ply.blkLen = x
-            end
-        end
-    end
-
     if not game.isPaused and not game.isPauseDelay and not game.isFail then
         stats.time = stats.time + dt
         stats.timeDisp = string.format("%02d", math.floor(stats.time / 60)) ..
@@ -1206,15 +1288,23 @@ function love.update(dt)
         -- line effect
         lEUpdate(stats.lEffect, dt)
         lkUpd(stats.lkEfct, dt)
+        lkUpd(stats.hDEfct, dt)
 
         -- danger zone detection
-        if dangerCheck(gMtrx) then
-            if ply.dangerA < 0.1 then
+        if dangerCheck(gMtrx) == 1 then
+            -- TODO: This is safe right?
+            if ply.dangerA < 0.15 then
+                ply.dangerA = tonumber(string.format("%.2f", ply.dangerA + dt))
+            elseif ply.dangerA > 0.15 then
+                ply.dangerA = tonumber(string.format("%.2f", ply.dangerA - dt))
+            end
+        elseif dangerCheck(gMtrx) == 2 then
+            if ply.dangerA < 0.25 then
                 ply.dangerA = ply.dangerA + dt
             end
         else
             if ply.dangerA > 0 then
-                ply.dangerA = ply.dangerA - dt * 0.85
+                ply.dangerA = ply.dangerA - dt * 0.5
             end
         end
 
@@ -1420,6 +1510,9 @@ function love.draw()
     end
 
     if not game.isPaused then
+        -- hard drop effect
+        hDDrw(stats.hDEfct)
+
         if settings.showOutlines then
             dOutline(gMtrx, 2)
         end
@@ -1436,19 +1529,20 @@ function love.draw()
             for x, blk in ipairs(blocks[ply.currBlk][ply.bRot][y]) do
                 if y == 1 then
                     if blk ~= 0 then
-                        dBlocks(blk, x + ply.x, y + ply.y)
+                        dBlocks(blk, x + ply.x, y + ply.y, false, false, false, true)
                     end
                 else
                     if blk ~= 0 then
-                        dBlocks(blk, x + ply.x, y + ply.y)
+                        dBlocks(blk, x + ply.x, y + ply.y, false, false, false, true)
                     end
                 end
             end
         end
+
+        lEDraw(stats.lEffect)
+        lkDrw(stats.lkEfct)
     end
 
-    lEDraw(stats.lEffect)
-    lkDrw(stats.lkEfct)
 
     -- game ui
     failCol(false)
@@ -1526,13 +1620,13 @@ function love.draw()
                 if settings.rotSys == "ARS" then
                     return {
                         -- duct tape
-                        { gCol.red[1] - .2, gCol.red[2] - .2, gCol.red[3] - .2 },
-                        {gCol.green[1] - .2, gCol.green[2] - .2, gCol.green[3] - .2},
-                        {gCol.purple[1] - .2, gCol.purple[2] - .2, gCol.purple[3] - .2},
-                        {gCol.orange[1] - .2, gCol.orange[2] - .2, gCol.orange[3] - .2},
-                        {gCol.blue[1] - .2, gCol.blue[2] - .2, gCol.blue[3] - .2},
-                        {gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2},
-                        {gCol.lBlue[1] - .2, gCol.lBlue [2] - .2, gCol.lBlue[3] - .2},
+                        { gCol.red[1] - .2,    gCol.red[2] - .2,    gCol.red[3] - .2 },
+                        { gCol.green[1] - .2,  gCol.green[2] - .2,  gCol.green[3] - .2 },
+                        { gCol.purple[1] - .2, gCol.purple[2] - .2, gCol.purple[3] - .2 },
+                        { gCol.orange[1] - .2, gCol.orange[2] - .2, gCol.orange[3] - .2 },
+                        { gCol.blue[1] - .2,   gCol.blue[2] - .2,   gCol.blue[3] - .2 },
+                        { gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2 },
+                        { gCol.lBlue[1] - .2,  gCol.lBlue[2] - .2,  gCol.lBlue[3] - .2 },
                         C = cFAC.col[cFAC.index]
                     }
                 end
@@ -1555,7 +1649,7 @@ function love.draw()
         if not game.isFail then
             lg.setColor(clrB()[lnui.cBlk][1], clrB()[lnui.cBlk][2], clrB()[lnui.cBlk][3], lnui.a)
             lg.printf(lnui.str, fonts.ui, -1210 - (35 * (i - 1)) + 2, gBoard.h * (gBoard.visH - 12) + 2, 1200 - 20,
-            "right")
+                "right")
         end
 
         -- front text
@@ -1681,7 +1775,7 @@ function love.draw()
             settings.scale ..
             "\nlEffect: " ..
             #stats.lEffect ..
-            "\nlkEfct: " .. #stats.lkEfct .. "\nuseHold: " .. tostring(game.useHold) .. "\nblkLen: " .. ply.blkLen,
+            "\nlkEfct: " .. #stats.lkEfct .. "\nuseHold: " .. tostring(game.useHold) .. lowestCells(ply, gMtrx),
             fonts.othr, 10, 10)
         lg.printf(
             "x: " ..
@@ -1700,9 +1794,9 @@ function love.draw()
             "\nsdrTimer: " ..
             ply.sdrTimer ..
             "\ngTimer: " ..
-            ply.gTimer ..
+            ply.gTimer .. " / " .. ply.grav ..
             "\nlDTimer: " ..
-            ply.lDTimer ..
+            ply.lDTimer .. " / " .. ply.lDelay ..
             "\nisHDrop: " ..
             tostring(ply.isHDrop) .. "\nisAlreadyHold: " .. tostring(ply.isAlreadyHold) ..
             "\nisPaused: " .. tostring(game.isPaused) .. "\nisPauseDelay: " .. tostring(game.isPauseDelay) ..
