@@ -12,6 +12,7 @@ wip puzzle game
 - <code>K</code>/<code>L</code>: Rotate clockwise/counterclockwise
 - <code>Space</code>: Hold piece (disabled by default for now)
 - <code>Escape</code>/<code>P</code>: Pause/unpause game
+- <code>F7</code>: Hide/show key overlay
 - <code>F11</code>: Toggle fullscreen
 
 ### # Debug keys
