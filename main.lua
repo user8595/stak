@@ -1,4 +1,6 @@
--- high score as of writing: 21850500, lv 110, 1100 lines, 35:33.42 time
+-- high score as of writing: 21850500, lv 110, 1100 lines, 35:33.42 time (no gravity)
+-- highest score as of writing: 2438450, lv 35, 349 lines, 09:04.14 (60hz w/ gravity without resetting board)
+
 -- highest secret grade as of writing: s8, lv 8, 75 lines, 03:33.64 time (with current version's settings)
 
 local lg, lw, lk, lm = love.graphics, love.window, love.keyboard, love.mouse
@@ -21,10 +23,20 @@ local fonts = {
     othr = lg.newFont("/assets/fonts/Picopixel.ttf", 14)
 }
 
+-- textures
+local tex = {
+    danger = lg.newImage("/assets/img/danger.png")
+}
+
+
 fonts.beeg:setLineHeight(0.8)
 
 for _, f in pairs(fonts) do
     f:setFilter("nearest", "nearest")
+end
+
+for _, t in pairs(tex) do
+    t:setFilter("nearest", "nearest")
 end
 
 -- game states
@@ -32,7 +44,7 @@ local game = {
     isPaused = false,
     isPauseDelay = false,
     isFail = false,
-    useHold = false,
+    useHold = true,
     showFailColors = false,
     isGravityInc = true
 }
@@ -51,10 +63,13 @@ local settings = {
     scale = 1,
     -- TODO: Implement rotation system switching
     rotSys = "ARS",
-    -- works best with line clear delay
+    bagType = "modern",
+
+    -- broken for now
     useIRS = false,
     -- broken for now
     useVSync = true,
+
     isDebug = true,
 }
 
@@ -71,6 +86,9 @@ local keys = {
     right = "d",
     cw = "l",
     ccw = "k",
+    -- equal to a 180 turn
+    --TODO: Implement 180 turns
+    flip = "j",
     hold = "space",
     pause = "p",
     restart = "return"
@@ -92,7 +110,7 @@ local gBoard = {
 local ply = {
     x = 3,
     y = 0,
-    currBlk = lmth.random(1, 7),
+    currBlk = 1,
     bRot = 1,
     next = {},
     hold = 0,
@@ -106,7 +124,7 @@ local ply = {
     arr = 1 / 1000,
     arrTimer = 0,
     -- soft drop speed
-    sdr = 5 / 1000,
+    sdr = 1 / 1000,
     sdrTimer = 0,
 
     -- lock delay
@@ -118,7 +136,6 @@ local ply = {
     lnDlyTmr = 0,
     lnDly = 100 / 1000,
 
-    --TODO: Add player entry delay function
     isEnDly = false,
     enDlyTmr = 0,
     enDly = 100 / 1000,
@@ -127,6 +144,8 @@ local ply = {
     gTimer = 0,
     grav = gTable.grav[1],
     gMult = 1,
+
+    --TODO: Implement move reset limit
 
     isHDrop = false,
     dangerA = 0,
@@ -146,16 +165,21 @@ local stats = {
     nxtLines = 10,
     comb = 0,
     maxComb = 0,
+
     clr = {
         sgl = 0,
         dbl = 0,
         trp = 0,
         qd = 0,
         ac = 0,
+        --TODO: Implement t-spin detection
+        spinT = 0
     },
+
     -- equivalent to b2b
     strk = 0,
     maxStrk = 0,
+
     lineClr = 0,
     time = 0,
     timeDisp = 0,
@@ -206,22 +230,59 @@ local gColD = {
 local blocks = gTable.blocks[1]
 
 local overlays = {
-    kOver.newKey(20, 40, keys.left, gCol.gOutline, gCol.white, gCol.gOutline, gCol.white),
-    kOver.newKey(60, 40, keys.right, gCol.gOutline, gCol.white, gCol.gOutline, gCol.white),
-    kOver.newKey(40, 60, keys.hDrop, gCol.gOutline, gCol.white, gCol.gOutline, gCol.white),
-    kOver.newKey(40, 40, keys.sDrop, gCol.gOutline, gCol.white, gCol.gOutline, gCol.white),
+    kOver.newKey(20, 40, keys.left, "L", gCol.gOutline, gCol.white),
+    kOver.newKey(60, 40, keys.right, "R", gCol.gOutline, gCol.white),
+    kOver.newKey(40, 60, keys.hDrop, "U", gCol.gOutline, gCol.white),
+    kOver.newKey(40, 40, keys.sDrop, "D", gCol.gOutline, gCol.white),
 
-    kOver.newKey(90, 40, keys.ccw, gCol.gOutline, gCol.white, gCol.gOutline, gCol.white),
-    kOver.newKey(110, 40, keys.cw, gCol.gOutline, gCol.white, gCol.gOutline, gCol.white),
-    kOver.newKey(130, 40, keys.hold, gCol.gOutline, gCol.white, gCol.gOutline, gCol.white),
+    kOver.newKey(90, 40, keys.ccw, "C", gCol.gOutline, gCol.white),
+    kOver.newKey(110, 40, keys.cw, "W", gCol.gOutline, gCol.white),
+    kOver.newKey(130, 40, keys.hold, "H", gCol.gOutline, gCol.white),
 }
 
---TODO: Finish randomizer function
+-- https://stackoverflow.com/questions/35572435/how-do-you-do-the-fisher-yates-shuffle-in-lua/68486276#68486276
+local function shuffle(t)
+    local s = {}
+    for i = 1, #t do s[i] = t[i] end
+    for i = #t, 2, -1 do
+        local j = lmth.random(i)
+        s[i], s[j] = s[j], s[i]
+    end
+    return s
+end
+
+local function concatTab(t1, t2)
+    for i = 1, #t2 do
+        t1[#t1 + 1] = t2[i]
+    end
+    return t1
+end
+
+local bagVar = { 1, 5, 4, 6, 3, 7, 2 }
 local function bagInit(plyVar)
-    if plyVar.currBlk >= #blocks then
-        plyVar.currBlk = 1
+    if settings.bagType == "modern" then
+        local bagShuf = shuffle(bagVar)
+        ply.next = concatTab(ply.next, bagShuf)
+
+        if plyVar.currBlk ~= plyVar.next[1] then
+            plyVar.currBlk = plyVar.next[1]
+        end
+    end
+end
+
+local function bagReset(plyVar)
+    tClear(plyVar.next)
+    bagInit(ply)
+end
+
+-- reshuffle bag on end of next queue
+local function nextQueue(plyVar)
+    if #plyVar.next > 4 then
+        table.remove(plyVar.next, 1)
+        plyVar.currBlk = plyVar.next[1]
     else
-        plyVar.currBlk = plyVar.currBlk + 1
+        table.remove(plyVar.next, 1)
+        bagInit(ply)
     end
 end
 
@@ -247,7 +308,7 @@ local function bMove(tX, tY, tRot, mtrxTab)
     return true
 end
 
---TODO: Improve IRS function?
+--TODO: Make IRS a buffer, not start from plyInit()
 local function checkIRS(plyVar, blkTab)
     if settings.useIRS and not game.isFail and not game.isPauseDelay and not game.isPaused then
         if plyVar.currBlk ~= 6 then
@@ -311,13 +372,12 @@ end
 local function holdFunc(plyVar)
     if ply.hold == 0 then
         plyVar.hold = plyVar.currBlk
-        bagInit(plyVar)
+        nextQueue(ply)
     else
-        --TODO: Tempoary, replace with bag sequence
-        --- replace with first next block on queue
-        plyVar.currBlk = plyVar.hold
-        -- move current block to hold queue
-        plyVar.hold = plyVar.currBlk
+        -- replace block in hold with current block
+        plyVar.currBlk = ply.hold
+        -- replace block in hold with first block in next queue
+        plyVar.hold = plyVar.next[1]
     end
 
     -- reset player position
@@ -343,7 +403,7 @@ local function lowestCells(plyVar, mtrxTab, isInverse)
     end
 end
 
-local function dBlocks(bl, x, y, isGhost, isOutline, noColors, lDlyFade, isHDrop, hdAlp, hdHgt)
+local function dBlocks(bl, x, y, isGhost, isOutline, noColors, lDlyFade, isHDrop, hdAlp, hdHgt, img)
     local colors = function()
         if settings.rotSys == "ARS" then
             return
@@ -405,15 +465,21 @@ local function dBlocks(bl, x, y, isGhost, isOutline, noColors, lDlyFade, isHDrop
             end
         end
 
-        if isHDrop then
-            lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w,
-                gBoard.h * hdHgt)
-        end
+        if img == nil then
+            if isHDrop then
+                lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w,
+                    gBoard.h * hdHgt)
+            end
 
-        if not isOutline then
-            lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
+            if not isOutline then
+                lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
+            else
+                lg.rectangle("line", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
+            end
         else
-            lg.rectangle("line", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w, gBoard.h)
+            lg.setColor(1, 1, 1, 1)
+            lg.draw(img, gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), 0, gBoard.w / img:getWidth(),
+                gBoard.h / img:getHeight())
         end
     end
 end
@@ -495,21 +561,16 @@ end
 
 -- next & hold box drawing
 -- use 3 next slots
--- TODO: Finish randomizer function
 local function dNBox(blkTab, plyTab, isHold)
-    -- TODO: Tempoary, replace with bag sequence
-    local nBlk = plyTab.currBlk + 1
     local hBlk = plyTab.hold
-
-    if nBlk > #blkTab then
-        nBlk = 1
-    end
 
     if not game.isPaused then
         if not isHold then
-            for y, _ in ipairs(blkTab[nBlk][1]) do
-                for x, blk in ipairs(blkTab[nBlk][1][y]) do
-                    dBlocks(blk, x + gBoard.visW + 1, y + 2, false, false, false)
+            for i = 1, 3, 1 do
+                for y, _ in ipairs(blkTab[plyTab.next[2 + (i - 1)]][1]) do
+                    for x, blk in ipairs(blkTab[plyTab.next[2 + (i - 1)]][1][y]) do
+                        dBlocks(blk, x + gBoard.visW + 1, y + 2 + (3 * (i - 1)), false, false, false)
+                    end
                 end
             end
         else
@@ -519,7 +580,6 @@ local function dNBox(blkTab, plyTab, isHold)
                         dBlocks(blk, x + gBoard.x - 5, y + 2, false, false, false)
                     end
                 end
-                lg.printf("(broken for now)", fonts.othr, -123, gBoard.y + 110, 160, "left")
             end
         end
     end
@@ -527,10 +587,7 @@ end
 
 -- next queue outline
 local function nxtCol(currBlk, isHold)
-    local nBlk = currBlk + 1
-    if nBlk > #blocks then
-        nBlk = 1
-    end
+    local nBlk = ply.next[2]
     local cols = function()
         if not game.isFail or game.showFailColors then
             if settings.rotSys == "ARS" then
@@ -815,7 +872,6 @@ local function clearCells(y, mtrxTab, boardVar)
         newLineEffect(y - 1, gBoard, stats.lEffect, false, true)
     end
 
-    -- TODO: Implement line clear delay
     -- clear lines with empty tiles
     for clrX = 1, gBoard.visW do
         mtrxTab[y][clrX] = 0
@@ -976,10 +1032,12 @@ local function dangerCheck(mtrxTab)
     for y, _ in ipairs(mtrxTab) do
         for x, _ in ipairs(mtrxTab[y]) do
             if x > math.floor(gBoard.visW / 6) and x < gBoard.visW - (math.floor(gBoard.visW / 6)) then
+                -- lv 1
                 if y > dangerY - 2 and y < dangerY then
                     if mtrxTab[y][x] ~= 0 then
                         return 1
                     end
+                    -- lv 2
                 elseif y < dangerY - 2 then
                     if mtrxTab[y][x] ~= 0 then
                         return 2
@@ -989,6 +1047,20 @@ local function dangerCheck(mtrxTab)
         end
     end
     return false
+end
+
+-- danger block function
+local function dDangerBlk(blkTab, mtrxTab, plyVar)
+    local nBlk = ply.next[2]
+    if not game.isFail then
+        if dangerCheck(mtrxTab) == 2 then
+            for y, _ in ipairs(blkTab[nBlk][1]) do
+                for x, blk in ipairs(blkTab[nBlk][1][y]) do
+                    dBlocks(blk, x + 3, y + 0, false, false, true, false, false, nil, nil, tex.danger)
+                end
+            end
+        end
+    end
 end
 
 -- color flash effect
@@ -1065,6 +1137,9 @@ function love.load()
     lg.printf("Loading..", fonts.ui, 0, wHg / 2, wWd, "center")
     love.graphics.present()
 
+    -- initialize queue
+    bagInit(ply)
+
     lg.setBackgroundColor(gCol.bg)
     lm.setVisible(false)
 end
@@ -1088,11 +1163,13 @@ function love.keypressed(k)
         end
     end
 
-    if k == "f7" then
-        if not settings.showKOverlay then
-            settings.showKOverlay = true
+    if k == "f6" then
+        if not settings.useVSync then
+            settings.useVSync = true
         else
-            settings.showKOverlay = false
+            if lt.getFPS() < 60 then
+                settings.useVSync = false
+            end
         end
     end
 
@@ -1136,8 +1213,13 @@ function love.keypressed(k)
 
             ply.isHDrop = true
 
-            if not ply.isLnDly and not ply.isEnDly then
-                bagInit(ply)
+            -- trigger entry delay if classic rotation
+            if not ply.isLnDly then
+                if settings.rotSys == "ARS" then
+                    ply.isEnDly = true
+                else
+                    nextQueue(ply)
+                end
             end
             plyInit(ply)
 
@@ -1183,8 +1265,16 @@ function love.keypressed(k)
 
         -- hold key function
         if k == keys.hold and game.useHold then
-            if not ply.isAlreadyHold and not ply.lnDly and not ply.isEnDly then
+            if not ply.isAlreadyHold and not ply.isLnDly and not ply.isEnDly then
                 holdFunc(ply)
+            end
+        end
+        
+        if k == "f7" then
+            if not settings.showKOverlay then
+                settings.showKOverlay = true
+            else
+                settings.showKOverlay = false
             end
         end
     end
@@ -1195,7 +1285,7 @@ function love.keypressed(k)
             game.showFailColors = false
             gameInit(ply, stats)
             mtrxClr(gMtrx)
-            bagInit(ply)
+            bagReset(ply)
             plyInit(ply)
         end
         if k == "i" then
@@ -1214,17 +1304,9 @@ function love.keypressed(k)
         end
 
         if k == "e" then
-            bagInit(ply)
+            bagReset(ply)
             plyInit(ply)
             mtrxClr(gMtrx)
-        end
-
-        if k == "i" then
-            if not game.useHold then
-                game.useHold = true
-            else
-                game.useHold = false
-            end
         end
 
         -- if k == "o" then
@@ -1347,10 +1429,8 @@ function love.update(dt)
             if ply.enDlyTmr < ply.enDly then
                 ply.enDlyTmr = ply.enDlyTmr + dt
             else
-                -- only shuffle bag after line & entry delay
-                if not game.isFail then
-                    bagInit(ply)
-                end
+                -- only advance next queue bag after line & entry delay
+                nextQueue(ply)
                 if settings.useIRS then
                     checkIRS(ply, blocks)
                 end
@@ -1413,6 +1493,7 @@ function love.update(dt)
                 end
             end
 
+            -- soft drop
             if lk.isDown(keys.sDrop) then
                 if ply.sdrTimer < ply.sdr then
                     ply.sdrTimer = ply.sdrTimer + dt
@@ -1436,6 +1517,7 @@ function love.update(dt)
                 end
             end
 
+            -- gravity function
             if ply.gTimer <= ply.grav and bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) then
                 if not ply.isHDrop then
                     ply.gTimer = ply.gTimer + dt
@@ -1459,10 +1541,13 @@ function love.update(dt)
                         end
 
                         if not game.isFail then
-                            if not ply.isLnDly and not ply.isEnDly then
-                                bagInit(ply)
-                            end
                             plyInit(ply)
+                            -- trigger entry delay if classic rotation
+                            if settings.rotSys == "ARS" then
+                                ply.isEnDly = true
+                            else
+                                nextQueue(ply)
+                            end
                         end
                     end
                 end
@@ -1515,7 +1600,6 @@ function love.update(dt)
         colFlashUpd(cFAC, dt)
     end
 
-
     if not game.isPaused and not game.isPauseDelay then
         -- game fail function
         if isGFail(gMtrx) and not ply.isLnDly and not ply.isEnDly then
@@ -1536,12 +1620,6 @@ function love.update(dt)
                 ply.isHDrop = false
             end
         end
-
-        -- increase width for hard drop effect in separate variable
-        -- store width & current position values to table
-        -- after storing values to table, reset current unstored value for width to 0
-        -- stored variable is used for width of current object & current players position of block
-        -- rinse and repeat
 
         -- game fail function
         if game.isFail then
@@ -1604,6 +1682,8 @@ function love.draw()
         if settings.showOutlines then
             dOutline(gMtrx, 2)
         end
+
+        dDangerBlk(blocks, gMtrx, ply)
 
         for y, _ in ipairs(gMtrx) do
             for x, br in ipairs(gMtrx[y]) do
@@ -1825,6 +1905,7 @@ function love.draw()
         lg.setColor(1, 1, 1, 1)
         dPStats(0, 0)
     else
+        -- key overlay
         if settings.showKOverlay then
             kOver.drwKey(overlays)
         end
@@ -1863,7 +1944,7 @@ function love.draw()
             "\n" ..
             lg.getStats().drawcalls ..
             " draws / " ..
-            lg.getStats().texturememory / 1024 / 1024 ..
+            string.format("%.3f", lg.getStats().texturememory / 1024 / 1024) ..
             " MB" ..
             "\nsc: " ..
             settings.scale ..
@@ -1876,8 +1957,9 @@ function love.draw()
             "\nlowestCells: " ..
             lowestCells(ply, gMtrx, false) ..
             " / " ..
-            lowestCells(ply, gMtrx, true) ..
-            "\nclearedLinesYPos: " .. table.concat(stats.clearedLinesYPos, " ,"),
+            lowestCells(ply, gMtrx, true) .. "\nnext: " .. table.concat(ply.next, " ,") ..
+            "\nclearedLinesYPos: " .. table.concat(stats.clearedLinesYPos, " ,") ..
+            "\nuseVSync: " .. tostring(settings.useVSync),
             fonts.othr, 10, 10)
         lg.printf(
             "x: " ..
@@ -1905,7 +1987,9 @@ function love.draw()
             "\nisHDrop: " ..
             tostring(ply.isHDrop) .. "\nisAlreadyHold: " .. tostring(ply.isAlreadyHold) ..
             "\nisPaused: " .. tostring(game.isPaused) .. "\nisPauseDelay: " .. tostring(game.isPauseDelay) ..
-            "\nrotSys: " .. settings.rotSys .. "\nstacks: " .. stats.stacks .. "\nisFail: " .. tostring(game.isFail) ..
+            "\nrotSys: " ..
+            settings.rotSys ..
+            "\nbagType: " .. settings.bagType .. "\nstacks: " .. stats.stacks .. "\nisFail: " .. tostring(game.isFail) ..
             "\nsg: " ..
             stats.clr.sgl ..
             "\ndb: " ..

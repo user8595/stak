@@ -1,20 +1,41 @@
---TODO: Implement mini key overlay
 local lk, lg = love.keyboard, love.graphics
 local kFont = lg.newFont("/assets/fonts/monogram-extended.TTF", 24)
+local icon = lg.newImageFont("/assets/img/key_overlay.png", "UDLRCWH")
+icon:setFilter("nearest", "nearest")
 
 local kOver = {
-    newKey = function(x, y, k, col, colTxt, colAct, colTxtAct)
-        if assert(type(col) == "table" and type(colTxt) == "table" and type(colTxtAct) == "table" and type(colTxtAct) == "table", "overlay color must be table and rgb values") then
-            return {
-                x = x,
-                y = y,
-                k = k,
-                col = col,
-                colTxt = colTxt,
-                colAct = colAct,
-                colTxtAct = colTxtAct,
-                isDown = false,
-            }
+    newKey = function(x, y, k, txt, col, colTxt, colAct, colTxtAct)
+        if assert(txt ~= nil, "text label must not be empty") then
+            if assert(type(col) == "table" and type(colTxt) == "table", "overlay color must be table and rgb values") and
+                colAct ~= nil and
+                colTxtAct ~= nil
+            then
+                return {
+                    x = x,
+                    y = y,
+                    k = k,
+                    txt = txt,
+                    col = col,
+                    colTxt = colTxt,
+                    colAct = colAct,
+                    colTxtAct = colTxtAct,
+                    isDown = false,
+                }
+            end
+            -- use base colors if active colors are ommited
+            if assert(type(col) == "table" and type(colTxt) == "table" and colAct == nil and colTxtAct == nil, "overlay color must be table and rgb values") then
+                return {
+                    x = x,
+                    y = y,
+                    k = k,
+                    txt = txt,
+                    col = col,
+                    colTxt = colTxt,
+                    colAct = col,
+                    colTxtAct = colTxt,
+                    isDown = false,
+                }
+            end
         end
     end,
     updKey = function(keyTab)
@@ -49,9 +70,7 @@ local kOver = {
                 lg.setColor(kOv.colTxt[1], kOv.colTxt[2], kOv.colTxt[3], 1)
             end
 
-            if string.len(kOv.k) < 2 then
-                lg.printf(kOv.k:gsub("^%l", string.upper), kFont, kOv.x, (lg.getHeight() - kOv.y), 20, "center")
-            end
+            lg.printf(kOv.txt, icon, kOv.x, (lg.getHeight() - kOv.y), 20, "center")
         end
     end
 }
