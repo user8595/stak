@@ -108,129 +108,106 @@ local tables = {
             },
         },
         -- SRS
-        --TODO: Finish SRS spawn offsets
         {
             {
-                { 0, 0, 0, 0 }, { "I", "I", "I", "I" }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },
+                {
+                    { 0, 0, 0, 0 }, { "I", "I", "I", "I" }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },
+                },
+                {
+                    { 0, 0, "I", 0 }, { 0, 0, "I", 0 }, { 0, 0, "I", 0 }, { 0, 0, "I", 0 },
+                },
+                {
+                    { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { "I", "I", "I", "I" }, { 0, 0, 0, 0 },
+                },
+                {
+                    { 0, "I", 0, 0 }, { 0, "I", 0, 0 }, { 0, "I", 0, 0 }, { 0, "I", 0, 0 },
+                },
             },
             {
-                { 0, 0, "I", 0 }, { 0, 0, "I", 0 }, { 0, 0, "I", 0 }, { 0, 0, "I", 0 },
+                {
+                    { "Z", "Z", 0 }, { 0, "Z", "Z" }, { 0, 0, 0 }
+                },
+                {
+                    { 0, 0, "Z" }, { 0, "Z", "Z" }, { 0, "Z", 0 },
+                },
+                {
+                    { 0, 0, 0 }, { "Z", "Z", 0 }, { 0, "Z", "Z" },
+                },
+                {
+                    { 0, "Z", 0 }, { "Z", "Z", 0 }, { "Z", 0, 0 },
+                },
             },
             {
-                { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { "I", "I", "I", "I" }, { 0, 0, 0, 0 },
+                {
+                    { 0, "S", "S" }, { "S", "S", 0 }, { 0, 0, 0 },
+                },
+                {
+                    { 0, "S", 0 }, { 0, "S", "S" }, { 0, 0, "S" },
+                },
+                {
+                    { 0, 0, 0 }, { 0, "S", "S" }, { "S", "S", 0 },
+                },
+                {
+                    { "S", 0, 0 }, { "S", "S", 0 }, { 0, "S", 0 },
+                },
             },
             {
-                { 0, "I", 0, 0 }, { 0, "I", 0, 0 }, { 0, "I", 0, 0 }, { 0, "I", 0, 0 },
+                {
+                    { "L", 0, 0 }, { "L", "L", "L" }, { 0, 0, 0 },
+                },
+                {
+                    { 0, "L", "L" }, { 0, "L", 0 }, { 0, "L", 0 },
+                },
+                {
+                    { 0, 0, 0 }, { "L", "L", "L" }, { 0, 0, "L" },
+                },
+                {
+                    { 0, "L", 0 }, { 0, "L", 0 }, { "L", "L", 0 },
+                },
             },
+            {
+                {
+                    { 0, 0, "J" }, { "J", "J", "J" }, { 0, 0, 0 },
+                },
+                {
+                    { 0, "J", 0 }, { 0, "J", 0 }, { 0, "J", "J" },
+                },
+                {
+                    { 0, 0, 0 }, { "J", "J", "J" }, { "J", 0, 0 },
+                },
+                {
+                    { "J", "J", 0 }, { 0, "J", 0 }, { 0, "J", 0 },
+                },
+            },
+            {
+                {
+                    { 0, "O", "O" }, { 0, "O", "O" }, { 0, 0, 0 },
+                },
+                {
+                    { 0, "O", "O" }, { 0, "O", "O" }, { 0, 0, 0 },
+                },
+                {
+                    { 0, "O", "O" }, { 0, "O", "O" }, { 0, 0, 0 },
+                },
+                {
+                    { 0, "O", "O" }, { 0, "O", "O" }, { 0, 0, 0 },
+                },
+            },
+            {
+                {
+                    { 0, "T", 0 }, { "T", "T", "T" }, { 0, 0, 0 },
+                },
+                {
+                    { 0, "T", 0 }, { 0, "T", "T" }, { 0, "T", 0 },
+                },
+                {
+                    { 0, 0, 0 }, { "T", "T", "T" }, { 0, "T", 0 },
+                },
+                {
+                    { 0, "T", 0 }, { "T", "T", 0 }, { 0, "T", 0 },
+                },
+            }
         },
-        {
-            {
-                { "Z", "Z", 0 }, { 0, "Z", "Z" }, { 0, 0, 0 }
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-        },
-        {
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-        },
-        {
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-        },
-        {
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-        },
-        {
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-            {
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-                { 0, 0, 0 },
-            },
-        }
     },
     --TODO: Implement modern wall kicks
     wKicks = {
@@ -262,6 +239,112 @@ local tables = {
             -- T
             { 1, 0 }, { -1, 0 }
         },
+    },
+
+    colTab = {
+        nxtCol = {
+            classic = function(gCol)
+                return {
+                    gray = gCol.gOutline,
+                    gCol.red,
+                    gCol.green,
+                    gCol.purple,
+                    gCol.orange,
+                    gCol.blue,
+                    gCol.yellow,
+                    gCol.lBlue,
+                }
+            end,
+            modern = function(gCol)
+                return
+                {
+                    gray = gCol.gOutline,
+                    gCol.lBlue,
+                    gCol.green,
+                    gCol.red,
+                    gCol.orange,
+                    gCol.blue,
+                    gCol.yellow,
+                    gCol.purple,
+                }
+            end,
+            clD = function(gCol, gColD)
+                return {
+                    gray = gCol.gOutline,
+                    gColD.red,
+                    gColD.green,
+                    gColD.purple,
+                    gColD.orange,
+                    gColD.blue,
+                    gColD.yellow,
+                    gColD.lBlue,
+                }
+            end,
+            mdD = function(gCol, gColD)
+                return
+                {
+                    gray = gCol.gOutline,
+                    gColD.lBlue,
+                    gColD.green,
+                    gColD.red,
+                    gColD.orange,
+                    gColD.blue,
+                    gColD.yellow,
+                    gColD.purple,
+                }
+            end,
+        },
+        lClearUI = {
+            classic = function(gColD, cFAC)
+                return {
+                    gColD.red,
+                    gColD.green,
+                    gColD.purple,
+                    gColD.orange,
+                    gColD.blue,
+                    gColD.yellow,
+                    gColD.lBlue,
+                    C = cFAC.col[cFAC.index]
+                }
+            end,
+            classicD = function(gCol, cFAC)
+                return {
+                    -- duct tape
+                    { gCol.red[1] - .2,    gCol.red[2] - .2,    gCol.red[3] - .2 },
+                    { gCol.green[1] - .2,  gCol.green[2] - .2,  gCol.green[3] - .2 },
+                    { gCol.purple[1] - .2, gCol.purple[2] - .2, gCol.purple[3] - .2 },
+                    { gCol.orange[1] - .2, gCol.orange[2] - .2, gCol.orange[3] - .2 },
+                    { gCol.blue[1] - .2,   gCol.blue[2] - .2,   gCol.blue[3] - .2 },
+                    { gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2 },
+                    { gCol.lBlue[1] - .2,  gCol.lBlue[2] - .2,  gCol.lBlue[3] - .2 },
+                    C = cFAC.col[cFAC.index]
+                }
+            end,
+            modern = function(gColD, cFAC)
+                return {
+                    gColD.lBlue,
+                    gColD.green,
+                    gColD.purple,
+                    gColD.orange,
+                    gColD.blue,
+                    gColD.yellow,
+                    gColD.purple,
+                    C = cFAC.col[cFAC.index]
+                }
+            end,
+            modernD = function(gCol, cFAC)
+                return {
+                    { gCol.lBlue[1] - .2,  gCol.lBlue[2] - .2,  gCol.lBlue[3] - .2 },
+                    { gCol.green[1] - .2,  gCol.green[2] - .2,  gCol.green[3] - .2 },
+                    { gCol.red[1] - .2,    gCol.red[2] - .2,    gCol.red[3] - .2 },
+                    { gCol.orange[1] - .2, gCol.orange[2] - .2, gCol.orange[3] - .2 },
+                    { gCol.blue[1] - .2,   gCol.blue[2] - .2,   gCol.blue[3] - .2 },
+                    { gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2 },
+                    { gCol.purple[1] - .2, gCol.purple[2] - .2, gCol.purple[3] - .2 },
+                    C = cFAC.col[cFAC.index]
+                }
+            end
+        }
     }
 }
 

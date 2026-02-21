@@ -62,8 +62,8 @@ local settings = {
     showKOverlay = true,
     scale = 1,
     -- TODO: Implement rotation system switching
-    rotSys = "ARS",
-    bagType = "modern",
+    rotSys = "ARS", -- "ARS", "SRS"
+    bagType = "modern", -- "modern", "classic"
 
     -- broken for now
     useIRS = false,
@@ -113,6 +113,7 @@ local ply = {
     currBlk = 1,
     bRot = 1,
     next = {},
+    nDisp = 3,
     hold = 0,
     isAlreadyHold = false,
 
@@ -138,7 +139,7 @@ local ply = {
 
     isEnDly = false,
     enDlyTmr = 0,
-    enDly = 100 / 1000,
+    enDly = 50 / 1000,
 
     -- gravity
     gTimer = 0,
@@ -258,11 +259,11 @@ local function concatTab(t1, t2)
     return t1
 end
 
-local bagVar = { 1, 5, 4, 6, 3, 7, 2 }
+local bagDef = { 1, 5, 4, 6, 3, 7, 2 }
 local function bagInit(plyVar)
     if settings.bagType == "modern" then
-        local bagShuf = shuffle(bagVar)
-        ply.next = concatTab(ply.next, bagShuf)
+        local bagShuf = shuffle(bagDef)
+        plyVar.next = concatTab(plyVar.next, bagShuf)
 
         if plyVar.currBlk ~= plyVar.next[1] then
             plyVar.currBlk = plyVar.next[1]
@@ -272,17 +273,17 @@ end
 
 local function bagReset(plyVar)
     tClear(plyVar.next)
-    bagInit(ply)
+    bagInit(plyVar)
 end
 
 -- reshuffle bag on end of next queue
 local function nextQueue(plyVar)
-    if #plyVar.next > 4 then
+    if #plyVar.next > plyVar.nDisp + 1 then
         table.remove(plyVar.next, 1)
         plyVar.currBlk = plyVar.next[1]
     else
         table.remove(plyVar.next, 1)
-        bagInit(ply)
+        bagInit(plyVar)
     end
 end
 
@@ -422,7 +423,7 @@ local function dBlocks(bl, x, y, isGhost, isOutline, noColors, lDlyFade, isHDrop
             {
                 I = gCol.lBlue,
                 Z = gCol.green,
-                S = gCol.purple,
+                S = gCol.red,
                 L = gCol.orange,
                 J = gCol.blue,
                 O = gCol.yellow,
@@ -566,10 +567,14 @@ local function dNBox(blkTab, plyTab, isHold)
 
     if not game.isPaused then
         if not isHold then
-            for i = 1, 3, 1 do
+            for i = 1, plyTab.nDisp, 1 do
                 for y, _ in ipairs(blkTab[plyTab.next[2 + (i - 1)]][1]) do
                     for x, blk in ipairs(blkTab[plyTab.next[2 + (i - 1)]][1][y]) do
-                        dBlocks(blk, x + gBoard.visW + 1, y + 2 + (3 * (i - 1)), false, false, false)
+                        if settings.rotSys == "ARS" then
+                            dBlocks(blk, x + gBoard.visW + 1, y + 2 + (3 * (i - 1)), false, false, false)
+                        else
+                            dBlocks(blk, x + gBoard.visW + 1, y + 3 + (3 * (i - 1)), false, false, false)
+                        end
                     end
                 end
             end
@@ -577,7 +582,20 @@ local function dNBox(blkTab, plyTab, isHold)
             if plyTab.hold ~= 0 then
                 for y, _ in ipairs(blkTab[hBlk][1]) do
                     for x, blk in ipairs(blkTab[hBlk][1][y]) do
-                        dBlocks(blk, x + gBoard.x - 5, y + 2, false, false, false)
+                        if plyTab.isAlreadyHold then
+                            lg.setColor(gCol.gOutline)
+                            if settings.rotSys == "ARS" then
+                                dBlocks(blk, x + gBoard.x - 5, y + 2, false, false, true)
+                            else
+                                dBlocks(blk, x + gBoard.x - 5, y + 3, false, false, true)
+                            end
+                        else
+                            if settings.rotSys == "ARS" then
+                                dBlocks(blk, x + gBoard.x - 5, y + 2, false, false, false)
+                            else
+                                dBlocks(blk, x + gBoard.x - 5, y + 3, false, false, false)
+                            end
+                        end
                     end
                 end
             end
@@ -591,54 +609,15 @@ local function nxtCol(currBlk, isHold)
     local cols = function()
         if not game.isFail or game.showFailColors then
             if settings.rotSys == "ARS" then
-                return {
-                    gray = gCol.gOutline,
-                    gCol.red,
-                    gCol.green,
-                    gCol.purple,
-                    gCol.orange,
-                    gCol.blue,
-                    gCol.yellow,
-                    gCol.lBlue,
-                }
+                return gTable.colTab.nxtCol.classic(gCol)
             else
-                return
-                {
-                    gray = gCol.gOutline,
-                    gCol.lBlue,
-                    gCol.green,
-                    gCol.purple,
-                    gCol.orange,
-                    gCol.blue,
-                    gCol.yellow,
-                    gCol.purple,
-                }
+                return gTable.colTab.nxtCol.modern(gCol)
             end
         else
             if settings.rotSys == "ARS" then
-                return {
-                    gray = gCol.gOutline,
-                    gColD.red,
-                    gColD.green,
-                    gColD.purple,
-                    gColD.orange,
-                    gColD.blue,
-                    gColD.yellow,
-                    gColD.lBlue,
-                }
+                return gTable.colTab.nxtCol.clD(gCol, gColD)
             else
-                return
-                {
-                    gray = gCol.gOutline,
-                    gColD.lBlue,
-                    gColD.green,
-                    gColD.purple,
-                    gColD.orange,
-                    gColD.blue,
-                    gColD.yellow,
-                    gColD.purple,
-                    gCol.gOutline
-                }
+                return gTable.colTab.nxtCol.mdD(gCol, gColD)
             end
         end
     end
@@ -906,9 +885,6 @@ local function bAdd(bX, bY, bL, mtrxTab)
         print("!!! this should NOT happen ingame (blocks wont place normally) currBlk: " ..
             ply.currBlk .. " bRot: " .. ply.bRot .. " x: " .. ply.x .. " y: " .. ply.y .. " !!!")
     end
-
-    -- for hold function reserving
-    ply.isAlreadyHold = false
 
     -- for line clear function
     for y = 1, gBoard.visH do
@@ -1205,25 +1181,25 @@ function love.keypressed(k)
                 newLockEffect(stats.hDEfct, blocks, ply, true)
             end
 
+            local mult = 2
             while bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) do
                 ply.y = ply.y + 1
+                mult = mult + 2
             end
-
+            stats.scr = stats.scr + mult
+            print("hard drop triggered (mult: " .. mult .. ")")
             bAdd(ply.x, ply.y, blocks, gMtrx)
 
             ply.isHDrop = true
 
-            -- trigger entry delay if classic rotation
             if not ply.isLnDly then
-                if settings.rotSys == "ARS" then
-                    ply.isEnDly = true
-                else
-                    nextQueue(ply)
-                end
+                ply.isEnDly = true
             end
             plyInit(ply)
 
             stats.stacks = stats.stacks + 1
+
+            mult = 0
 
             ply.gTimer = 0
             ply.lDTimer = 0
@@ -1269,7 +1245,7 @@ function love.keypressed(k)
                 holdFunc(ply)
             end
         end
-        
+
         if k == "f7" then
             if not settings.showKOverlay then
                 settings.showKOverlay = true
@@ -1429,6 +1405,9 @@ function love.update(dt)
             if ply.enDlyTmr < ply.enDly then
                 ply.enDlyTmr = ply.enDlyTmr + dt
             else
+                -- for hold function reserving
+                ply.isAlreadyHold = false
+
                 -- only advance next queue bag after line & entry delay
                 nextQueue(ply)
                 if settings.useIRS then
@@ -1440,7 +1419,6 @@ function love.update(dt)
         else
             ply.enDlyTmr = 0
         end
-
 
         -- line effect
         lEUpdate(stats.lEffect, dt)
@@ -1500,6 +1478,7 @@ function love.update(dt)
                 else
                     if bMove(ply.x, ply.y + 1, ply.bRot, gMtrx) then
                         ply.y = ply.y + 1
+                        stats.scr = stats.scr + 1
                         if ply.sdrTimer > ply.sdr then
                             ply.sdrTimer = 0
                         end
@@ -1542,12 +1521,7 @@ function love.update(dt)
 
                         if not game.isFail then
                             plyInit(ply)
-                            -- trigger entry delay if classic rotation
-                            if settings.rotSys == "ARS" then
-                                ply.isEnDly = true
-                            else
-                                nextQueue(ply)
-                            end
+                            ply.isEnDly = true
                         end
                     end
                 end
@@ -1713,7 +1687,6 @@ function love.draw()
         lkDrw(stats.lkEfct)
     end
 
-
     -- game ui
     failCol(false)
     lg.printf("SCORE", fonts.othr, -60, gBoard.h * (gBoard.visH - 2.35), 40, "right")
@@ -1768,16 +1741,9 @@ function love.draw()
         local clr = function()
             if not game.isFail then
                 if settings.rotSys == "ARS" then
-                    return {
-                        gColD.red,
-                        gColD.green,
-                        gColD.purple,
-                        gColD.orange,
-                        gColD.blue,
-                        gColD.yellow,
-                        gColD.lBlue,
-                        C = cFAC.col[cFAC.index]
-                    }
+                    return gTable.colTab.lClearUI.classic(gCol, cFAC)
+                else
+                    return gTable.colTab.lClearUI.modern(gColD, cFAC)
                 end
             else
                 local tCol = 0.35
@@ -1788,17 +1754,9 @@ function love.draw()
         local clrB = function()
             if not game.isFail then
                 if settings.rotSys == "ARS" then
-                    return {
-                        -- duct tape
-                        { gCol.red[1] - .2,    gCol.red[2] - .2,    gCol.red[3] - .2 },
-                        { gCol.green[1] - .2,  gCol.green[2] - .2,  gCol.green[3] - .2 },
-                        { gCol.purple[1] - .2, gCol.purple[2] - .2, gCol.purple[3] - .2 },
-                        { gCol.orange[1] - .2, gCol.orange[2] - .2, gCol.orange[3] - .2 },
-                        { gCol.blue[1] - .2,   gCol.blue[2] - .2,   gCol.blue[3] - .2 },
-                        { gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2 },
-                        { gCol.lBlue[1] - .2,  gCol.lBlue[2] - .2,  gCol.lBlue[3] - .2 },
-                        C = cFAC.col[cFAC.index]
-                    }
+                    return gTable.colTab.lClearUI.classicD(gCol, cFAC)
+                else
+                    return gTable.colTab.lClearUI.modernD(gCol, cFAC)
                 end
             else
                 local tCol = 0.35
