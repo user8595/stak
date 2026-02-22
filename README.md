@@ -10,8 +10,10 @@ wip puzzle game
 - <code>W</code>: Hard drop
 - <code>S</code>: Soft drop
 - <code>K</code>/<code>L</code>: Rotate clockwise/counterclockwise
-- <code>Space</code>: Hold piece (disabled by default for now)
+- <code>L</code>: Flip piece 180º (unimplemented for now)
+- <code>Space</code>: Hold piece
 - <code>Escape</code>/<code>P</code>: Pause/unpause game
+- <code>F6</code>: Toggle VSync
 - <code>F7</code>: Hide/show key overlay
 - <code>F11</code>: Toggle fullscreen
 

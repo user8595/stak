@@ -1,6 +1,6 @@
 local lk, lg = love.keyboard, love.graphics
 local kFont = lg.newFont("/assets/fonts/monogram-extended.TTF", 24)
-local icon = lg.newImageFont("/assets/img/key_overlay.png", "UDLRCWH")
+local icon = lg.newImageFont("/assets/img/key_overlay.png", "UDLRCWHF")
 icon:setFilter("nearest", "nearest")
 
 local kOver = {

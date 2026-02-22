@@ -30,9 +30,8 @@ local tables = {
         "S6", "S7", "S8", "S9", "GM"
     },
     blocks =
-    -- ARS
     {
-        {
+        ars = {
             -- use on currBlk
             {
                 -- use on bRot
@@ -107,8 +106,7 @@ local tables = {
                 },
             },
         },
-        -- SRS
-        {
+        srs = {
             {
                 {
                     { 0, 0, 0, 0 }, { "I", "I", "I", "I" }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },
