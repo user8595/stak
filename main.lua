@@ -1,5 +1,6 @@
 -- high score as of writing: 21850500, lv 110, 1100 lines, 35:33.42 time (no gravity)
 -- highest score as of writing: 2438450, lv 35, 349 lines, 09:04.14 (60hz w/ gravity without resetting board)
+-- fastest 40l as of writing: ~00:52.22, ~2pps
 
 -- highest secret grade as of writing: s8, lv 8, 75 lines, 03:33.64 time (with current version's settings)
 
@@ -15,6 +16,7 @@ local lerp = require "lua.lerp"
 local gTable = require "lua.tables"
 local kOver = require "lua.kOver"
 local tInfo = require "lua.textInfo"
+local cFlash = require "lua.colFlash"
 
 local fonts = {
     ui = lg.newFont("/assets/fonts/monogram-extended.TTF", 32),
@@ -49,8 +51,13 @@ local game = {
     isFail = false,
     useHold = true,
     useSonicDrop = false,
+    useMoveReset = true,
     showFailColors = false,
-    isGravityInc = true
+    isGravityInc = true,
+
+    -- for 40 lines (txt for now)
+    --TODO: Implement game finish lines indicator
+    is40LClr = false,
 }
 
 local settings = {
@@ -116,7 +123,7 @@ local ply = {
     currBlk = 1,
     bRot = 1,
     next = {},
-    nDisp = 3,
+    nDisp = 5,
     hold = 0,
     isAlreadyHold = false,
 
@@ -363,6 +370,8 @@ local function gameInit(plyVar, sts)
     sts.maxComb, sts.maxPPS, sts.maxStrk = 0, 0, 0
     sts.strk, sts.comb = 0, 0
     sts.nxtLines = 10
+
+    game.is40LClr = false
     tClear(sts.lClearUI)
 end
 
@@ -969,6 +978,13 @@ local function bAdd(bX, bY, bL, mtrxTab)
             stats.clr.qd = stats.clr.qd + 1
             stats.strk = stats.strk + 1
         end
+        if stats.line >= 40 and not game.is40LClr then
+            game.is40LClr = true
+            tInfo.new(textInfo,
+                "40 lines clear! (" ..
+                stats.timeDisp .. ", " .. string.format("%.2f", stats.stacks / stats.time) .. " pps)", 0, wHg - 30, true,
+                gCol.yellow, 1, 4)
+        end
         if stats.line > stats.nxtLines then
             stats.lv = stats.lv + 1
 
@@ -1037,7 +1053,7 @@ end
 
 -- danger block function
 local function dDangerBlk(blkTab, mtrxTab, plyVar)
-    local nBlk = ply.next[2]
+    local nBlk = plyVar.next[2]
     if not game.isFail then
         if dangerCheck(mtrxTab) == 2 then
             for y, _ in ipairs(blkTab[nBlk][1]) do
@@ -1049,37 +1065,12 @@ local function dDangerBlk(blkTab, mtrxTab, plyVar)
     end
 end
 
--- color flash effect
-local function colFlashNew(col1, col2, time)
-    return {
-        index = 1,
-        cTime = 0,
-        time = time,
-        col = {
-            col1,
-            col2
-        }
-    }
-end
+local cFStrk = cFlash.new(gCol.yellow, gCol.blue, 0.05)
+local cFCb = cFlash.new(gCol.yellow, gCol.white, 0.05)
+local cFAC = cFlash.new(gColD.yellow, gColD.lBlue, 0.1)
 
-local function colFlashUpd(colVar, dt)
-    colVar.cTime = colVar.cTime + dt
-    if colVar.cTime > colVar.time then
-        if colVar.index < #colVar.col then
-            colVar.index = colVar.index + 1
-        else
-            colVar.index = 1
-        end
-        colVar.cTime = 0
-    end
-end
-
-local cFStrk = colFlashNew(gCol.yellow, gCol.blue, 0.05)
-local cFCb = colFlashNew(gCol.yellow, gCol.white, 0.05)
-local cFAC = colFlashNew(gColD.yellow, gColD.lBlue, 0.1)
-
-local cFFail = colFlashNew(gCol.orange, gCol.red, .05)
-local cFFBG = colFlashNew(gColD.orange, gColD.red, .75)
+local cFFail = cFlash.new(gCol.orange, gCol.red, .05)
+local cFFBG = cFlash.new(gColD.orange, gColD.red, .75)
 
 -- line clear ui effect
 local function lClearDrw()
@@ -1120,19 +1111,19 @@ local function lClearDrw()
             lg.setColor(clr()[1], clr()[2], clr()[3], lnui.a)
         end
 
-        lg.rectangle("fill", (-52 - (35 * (i - 1))), (gBoard.h * (gBoard.visH - 12)), 30,
+        lg.rectangle("fill", (-52 - (35 * (i - 1))), (gBoard.h * (gBoard.visH - 12)) + lnui.s, 30,
             30)
 
         -- backdrop text
         if not game.isFail then
             lg.setColor(clrB()[lnui.cBlk][1], clrB()[lnui.cBlk][2], clrB()[lnui.cBlk][3], lnui.a)
-            lg.printf(lnui.str, fonts.ui, -52 - (35 * (i - 1)) + 2, gBoard.h * (gBoard.visH - 12) + 2, 30,
+            lg.printf(lnui.str, fonts.ui, -52 - (35 * (i - 1)) + 2, gBoard.h * (gBoard.visH - 12) + 2 + lnui.s, 30,
                 "center")
         end
 
         -- front text
         lg.setColor(1, 1, 1, lnui.a)
-        lg.printf(lnui.str, fonts.ui, -52 - (35 * (i - 1)), gBoard.h * (gBoard.visH - 12), 30, "center")
+        lg.printf(lnui.str, fonts.ui, -52 - (35 * (i - 1)), gBoard.h * (gBoard.visH - 12) + lnui.s, 30, "center")
         lg.pop()
     end
 end
@@ -1253,7 +1244,7 @@ function love.keypressed(k)
                 ply.y = ply.y + 1
                 stats.scr = stats.scr + 2
             end
-            
+
             -- ignore locking piece on sonic lock
             if not game.useSonicDrop then
                 bAdd(ply.x, ply.y, blocks, gMtrx)
@@ -1270,7 +1261,7 @@ function love.keypressed(k)
 
                 ply.gTimer = 0
                 ply.lDTimer = 0
-                
+
                 ply.arrTimer = 0
                 ply.sdrTimer = 0
             else
@@ -1637,8 +1628,8 @@ function love.update(dt)
             if lnui.a > 0 then
                 lnui.a = lnui.a - dt * lnui.aSpd
                 if lnui.a < 0.65 then
-                    lnui.s = lnui.s + dt * ((lnui.aSpd / 4))
-                    lnui.yOff = lnui.yOff - dt * 21
+                    lnui.s = lnui.s + dt * ((lnui.aSpd / 3))
+                    lnui.yOff = lnui.yOff - dt * 29.75
                 end
             else
                 table.remove(stats.lClearUI, i)
@@ -1646,9 +1637,9 @@ function love.update(dt)
         end
 
         -- color flash update
-        colFlashUpd(cFStrk, dt)
-        colFlashUpd(cFCb, dt)
-        colFlashUpd(cFAC, dt)
+        cFlash.upd(cFStrk, dt)
+        cFlash.upd(cFCb, dt)
+        cFlash.upd(cFAC, dt)
     end
 
     if not game.isPaused and not game.isPauseDelay then
@@ -1678,7 +1669,7 @@ function love.update(dt)
         end
 
         -- for fail text
-        colFlashUpd(cFFail, dt)
+        cFlash.upd(cFFail, dt)
     end
 
     if lk.isDown("-") then
@@ -1734,7 +1725,7 @@ function love.draw()
             dOutline(gMtrx, 2)
         end
 
-        
+
         for y, _ in ipairs(gMtrx) do
             for x, br in ipairs(gMtrx[y]) do
                 if y ~= 1 then
@@ -1742,7 +1733,7 @@ function love.draw()
                 end
             end
         end
-        
+
         if not ply.isLnDly and not ply.isEnDly then
             for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
                 for x, blk in ipairs(blocks[ply.currBlk][ply.bRot][y]) do
@@ -1758,7 +1749,7 @@ function love.draw()
                 end
             end
         end
-        
+
         lEDraw(stats.lEffect)
         lkDrw(stats.lkEfct)
 
@@ -1767,18 +1758,18 @@ function love.draw()
 
     -- game ui
     failCol(false)
-    lg.printf("SCORE", fonts.othr, -60, gBoard.h * (gBoard.visH - 2.35), 40, "right")
-    lg.printf(stats.scr, fonts.ui, -1200, gBoard.h * (gBoard.visH - 1.85), 1200 - 20, "right")
+    lg.printf("LV.", fonts.othr, -60, gBoard.h * (gBoard.visH - 5.55 - .1), 40, "right")
+    lg.printf(stats.lv, fonts.ui, -1200, gBoard.h * (gBoard.visH - 5.05 - 0.1), 1200 - 20, "right")
 
-    lg.printf("LV.", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 6.15), 40, "left")
-    lg.printf(stats.lv, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 5.65), 1200, "left")
+    lg.printf("LINES", fonts.othr, -60, gBoard.h * (gBoard.visH - 3.25 - 0.1), 40, "right")
+    lg.printf(stats.line, fonts.ui, -1200, gBoard.h * (gBoard.visH - 2.75 - 0.1), 1200 - 20, "right")
 
-    lg.printf("LINES", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 3.65), 40, "left")
-    lg.printf(stats.line, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 3.15), 1200, "left")
+    lg.printf("SCORE", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 2.32), 1200, "left")
+    lg.printf(stats.scr, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 1.8), 1200, "left")
 
     failCol(true)
-    lg.printf(string.format("%.2f", stats.stacks / stats.time) .. " p/s", fonts.othr, gBoard.w * (gBoard.visW + 0.85),
-        gBoard.h * (gBoard.visH - 1.35), 1200, "left")
+    lg.printf(string.format("%.2f p/s", stats.stacks / stats.time), fonts.othr, -1200, gBoard.h * (gBoard.visH - 1.225), 1200 - 20,
+    "right")
 
     failCol(false)
     lg.printf(stats.timeDisp, fonts.time, gBoard.x,
@@ -1919,9 +1910,15 @@ function love.draw()
     tInfo.draw(textInfo)
 
     -- debug
-    lg.setColor(1, 1, 1, 1)
     if settings.isDebug then
         if arg[2] == "debug" then
+            lg.setColor(gCol.gray[1], gCol.gray[2], gCol.gray[3], 0.5)
+            if not game.isPaused then
+                lg.rectangle("line", 5, 5, wWd - 10, wHg - 10)
+            end
+            -- the label of shame
+            lg.printf("- DEBUG MODE -", fonts.smol, 0, wHg - 30, wWd, "center")
+            lg.setColor(1, 1, 1, 1)
             lg.print(
                 lt.getFPS() ..
                 " FPS\n" ..
@@ -1977,7 +1974,8 @@ function love.draw()
                 "\nrotSys: " ..
                 settings.rotSys ..
                 "\nbagType: " ..
-                settings.bagType .. "\nstacks: " .. stats.stacks .. "\nisFail: " .. tostring(game.isFail) ..
+                settings.bagType ..
+                "\nmoveR: " .. ply.moveR .. "\nstacks: " .. stats.stacks .. "\nisFail: " .. tostring(game.isFail) ..
                 "\nsg: " ..
                 stats.clr.sgl ..
                 "\ndb: " ..
