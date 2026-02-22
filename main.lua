@@ -1210,10 +1210,10 @@ function love.keypressed(k)
         tClear(textInfo)
         if not settings.useVSync then
             settings.useVSync = true
-            tInfo.new(textInfo, { gCol.green, "VSync enabled" }, 0, wHg - 50, true, nil, 2)
+            tInfo.new(textInfo, { gCol.green, "VSync enabled" }, 0, wHg - 50, true, nil, 2, 1)
         else
             settings.useVSync = false
-            tInfo.new(textInfo, { gCol.red, "VSync disabled" }, 0, wHg - 50, true, nil, 2)
+            tInfo.new(textInfo, { gCol.red, "VSync disabled" }, 0, wHg - 50, true, nil, 2, 1)
         end
     end
 
@@ -1734,8 +1734,7 @@ function love.draw()
             dOutline(gMtrx, 2)
         end
 
-        dDangerBlk(blocks, gMtrx, ply)
-
+        
         for y, _ in ipairs(gMtrx) do
             for x, br in ipairs(gMtrx[y]) do
                 if y ~= 1 then
@@ -1743,7 +1742,7 @@ function love.draw()
                 end
             end
         end
-
+        
         if not ply.isLnDly and not ply.isEnDly then
             for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
                 for x, blk in ipairs(blocks[ply.currBlk][ply.bRot][y]) do
@@ -1759,9 +1758,11 @@ function love.draw()
                 end
             end
         end
-
+        
         lEDraw(stats.lEffect)
         lkDrw(stats.lkEfct)
+
+        dDangerBlk(blocks, gMtrx, ply)
     end
 
     -- game ui

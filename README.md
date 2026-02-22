@@ -23,7 +23,7 @@ wip puzzle game
 - <code>-</code>/<code>+</code>: Reduce/increase board size
 - <code>0</code>: Reset board size
 - <code>I</code> (gameplay): Enable/disable hold queue
-- <code>F4</code>/<code>F5</code>: Hide debug/info text
+- <code>F4</code>: Hide debug text
 
 ## credits
 
