@@ -13,11 +13,14 @@ wip puzzle game
 - <code>L</code>: Flip piece 180º (unimplemented for now)
 - <code>Space</code>: Hold piece
 - <code>Escape</code>/<code>P</code>: Pause/unpause game
+- <code>O</code>: Switch timer UI
 - <code>F6</code>: Toggle VSync
 - <code>F7</code>: Hide/show key overlay
 - <code>F11</code>: Toggle fullscreen
 
 ### # Debug keys
+
+> <i>Only works if launched with <code>debug</code> argument<i>
 
 - <code>E</code>/<code>R</code>: Clear board & reset player position
 - <code>-</code>/<code>+</code>: Reduce/increase board size

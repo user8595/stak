@@ -1,5 +1,8 @@
 -- for animation, where a = initial value, b = target value, t = time
 local lerp = {
+    linear = function (a, b ,t)
+        return a + t * (b - a)
+    end,
     easeOutCubic = function(a, b, t)
         return a + 1 - math.pow(1 - t, 3) * (b - a)
     end,

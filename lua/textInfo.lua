@@ -41,9 +41,11 @@ local textInfo = {
                     table.remove(txtTab, i)
                 end
             end
-            
-            fontInfo:release()
-            fontInfo = lg.newFont("/assets/fonts/Picopixel.ttf", 14 * scale)
+
+            if scale > 0.75 then
+                fontInfo:release()
+                fontInfo = lg.newFont("/assets/fonts/Picopixel.ttf", 14 * scale)
+            end
         end
     end,
     draw = function(txtTab)

@@ -293,7 +293,7 @@ local tables = {
             end,
         },
         lClearUI = {
-            classic = function(gColD, cFAC)
+            classic = function(gColD, cFAC, cFSpn)
                 return {
                     gColD.red,
                     gColD.green,
@@ -302,10 +302,11 @@ local tables = {
                     gColD.blue,
                     gColD.yellow,
                     gColD.lBlue,
-                    C = cFAC.col[cFAC.index]
+                    C = cFAC.col[cFAC.index],
+                    T = cFSpn.col[cFSpn.index]
                 }
             end,
-            classicD = function(gCol, cFAC)
+            classicD = function(gCol, cFAC, cFSpn)
                 return {
                     -- duct tape
                     { gCol.red[1] - .2,    gCol.red[2] - .2,    gCol.red[3] - .2 },
@@ -315,10 +316,11 @@ local tables = {
                     { gCol.blue[1] - .2,   gCol.blue[2] - .2,   gCol.blue[3] - .2 },
                     { gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2 },
                     { gCol.lBlue[1] - .2,  gCol.lBlue[2] - .2,  gCol.lBlue[3] - .2 },
-                    C = cFAC.col[cFAC.index]
+                    C = cFAC.col[cFAC.index],
+                    T = cFSpn.col[cFSpn.index]
                 }
             end,
-            modern = function(gColD, cFAC)
+            modern = function(gColD, cFAC, cFSpn)
                 return {
                     gColD.lBlue,
                     gColD.green,
@@ -327,10 +329,11 @@ local tables = {
                     gColD.blue,
                     gColD.yellow,
                     gColD.purple,
-                    C = cFAC.col[cFAC.index]
+                    C = cFAC.col[cFAC.index],
+                    T = cFSpn.col[cFSpn.index]
                 }
             end,
-            modernD = function(gCol, cFAC)
+            modernD = function(gCol, cFAC, cFSpn)
                 return {
                     { gCol.lBlue[1] - .2,  gCol.lBlue[2] - .2,  gCol.lBlue[3] - .2 },
                     { gCol.green[1] - .2,  gCol.green[2] - .2,  gCol.green[3] - .2 },
@@ -339,7 +342,8 @@ local tables = {
                     { gCol.blue[1] - .2,   gCol.blue[2] - .2,   gCol.blue[3] - .2 },
                     { gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2 },
                     { gCol.purple[1] - .2, gCol.purple[2] - .2, gCol.purple[3] - .2 },
-                    C = cFAC.col[cFAC.index]
+                    C = cFAC.col[cFAC.index],
+                    T = cFSpn.col[cFSpn.index]
                 }
             end
         }
