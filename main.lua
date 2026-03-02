@@ -2,7 +2,12 @@
 -- highest score as of writing: 19876066, lv 106, 1059 lines, 30:31.67 (60hz w/ gravity without resetting board)
 -- fastest 40l as of writing: 00:52.20, 1.99pps
 
--- highest secret grade as of writing: s8, lv 8, 75 lines, 03:33.64 time (with current version's settings)
+-- highest secret grade as of writing:
+-- S8, lv 8, 75 lines, 03:33.64 time (ars)
+-- GM, lv 9, 81 lines, 03:17.16 time (srs)
+
+-- ##### a good reminder that this game relies a LOT with 1-based indexing #####
+-- and the sky is blue
 
 local lg, lw, lk, lm = love.graphics, love.window, love.keyboard, love.mouse
 local lt, le = love.timer, love.event
@@ -342,7 +347,9 @@ local function plyInit(plyVar)
 end
 
 local function gameInit(plyVar, sts, gameVar)
-    plyVar.arrTimer, plyVar.dasTimer, plyVar.gTimer, plyVar.grav = 0, 0, 0, gTable.grav[1]
+    plyVar.arrTimer, plyVar.dasTimer = 0, 0
+    plyVar.gTimer, plyVar.grav = 0, gTable.grav[1]
+    plyVar.gMult = 1
     plyVar.isAlreadyHold = false
     plyVar.isAlrRot = false
     plyVar.isLnDly = false
@@ -903,7 +910,7 @@ local function bRotate(plyVar, tX, tY, bRot, bRotPrev, mtrxTab)
             local bLen = blocks[plyVar.currBlk]
             if #bLen > 1 then
                 if #bLen[bRot] <= 3 and bLen ~= 1 then -- not an O piece
-                    if plyVar.currBlk ~= 1 then           -- not an I piece
+                    if plyVar.currBlk ~= 1 then        -- not an I piece
                         if not bMove(plyVar, tX - 1, tY, bRot, mtrxTab) then
                             plyVar.x = plyVar.x + 1
                         end
@@ -1869,7 +1876,8 @@ function love.update(dt)
             end
 
             -- gravity function
-            if ply.gTimer < ply.grav and bMove(ply, ply.x, ply.y + (1 + gTable.gravMult[ply.gMult]), ply.bRot, gMtrx) then
+            if ply.gTimer < ply.grav and
+                bMove(ply, ply.x, ply.y + (1 + gTable.gravMult[ply.gMult]), ply.bRot, gMtrx) then
                 if not ply.isHDrop then
                     ply.gTimer = ply.gTimer + dt
                     ply.lDTimer = 0
