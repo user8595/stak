@@ -7,21 +7,21 @@ local tables = {
         -- level 5 to 10
         0.25, 0.18, 0.10, 0.05, 0.03,
 
-        -- level 11
-        0.01
+        -- level 11 to 13
+        0.025, 0.015, 0.001
 
-        -- level 12+ == 0s
+        -- level 13+ == 0s
     },
     --TODO: Implement gravity multipliers?
     gravMult = {
-        -- < level 12
+        -- < level 13
         0,
 
-        -- level 12 to 15
-        0, 1, 2, 2, 3,
+        -- level 13 to 15
+        0, 1, 2,
 
         -- level 15 to 20+
-        4, 6, 8, 9, 20
+        4, 7, 8, 12, 20
     },
     --TODO: Implement secret grade values
     sGrade = {
@@ -151,30 +151,30 @@ local tables = {
             },
             {
                 {
-                    { "L", 0, 0 }, { "L", "L", "L" }, { 0, 0, 0 },
+                    { "J", 0, 0 }, { "J", "J", "J" }, { 0, 0, 0 },
                 },
                 {
-                    { 0, "L", "L" }, { 0, "L", 0 }, { 0, "L", 0 },
+                    { 0, "J", "J" }, { 0, "J", 0 }, { 0, "J", 0 },
                 },
                 {
-                    { 0, 0, 0 }, { "L", "L", "L" }, { 0, 0, "L" },
+                    { 0, 0, 0 }, { "J", "J", "J" }, { 0, 0, "J" },
                 },
                 {
-                    { 0, "L", 0 }, { 0, "L", 0 }, { "L", "L", 0 },
+                    { 0, "J", 0 }, { 0, "J", 0 }, { "J", "J", 0 },
                 },
             },
             {
                 {
-                    { 0, 0, "J" }, { "J", "J", "J" }, { 0, 0, 0 },
+                    { 0, 0, "L" }, { "L", "L", "L" }, { 0, 0, 0 },
                 },
                 {
-                    { 0, "J", 0 }, { 0, "J", 0 }, { 0, "J", "J" },
+                    { 0, "L", 0 }, { 0, "L", 0 }, { 0, "L", "L" },
                 },
                 {
-                    { 0, 0, 0 }, { "J", "J", "J" }, { "J", 0, 0 },
+                    { 0, 0, 0 }, { "L", "L", "L" }, { "L", 0, 0 },
                 },
                 {
-                    { "J", "J", 0 }, { 0, "J", 0 }, { 0, "J", 0 },
+                    { "L", "L", 0 }, { 0, "L", 0 }, { 0, "L", 0 },
                 },
             },
             {
@@ -207,36 +207,28 @@ local tables = {
             }
         },
     },
-    --TODO: Implement modern wall kicks
     wKicks = {
+        -- J, L, S, T, Z
         {
-            -- I
-            { 1, 0 }, { -1, 0 }
+            { { 0, 0 }, { 0, 0 },  { 0, 0 },   { 0, 0 }, { 0, 0 } },
+            { { 0, 0 }, { 1, 0 },  { 1, -1 },  { 0, 2 }, { 1, 2 } },
+            { { 0, 0 }, { 0, 0 },  { 0, 0 },   { 0, 0 }, { 0, 0 } },
+            { { 0, 0 }, { -1, 0 }, { -1, -1 }, { 0, 2 }, { -1, 2 } },
         },
+        -- I
         {
-            -- Z
-            { 1, 0 }, { -1, 0 }
+            { { 0, 0 },  { -1, 0 }, { 2, 0 },  { -1, 0 }, { 2, 0 } },
+            { { -1, 0 }, { 0, 0 },  { 0, 0 },  { 0, 1 },  { 0, -2 } },
+            { { -1, 1 }, { 1, 1 },  { -2, 1 }, { 1, 0 },  { -2, 0 } },
+            { { 0, 1 },  { 0, 1 },  { 0, 1 },  { 0, -1 }, { 0, 2 } },
         },
+        -- O
         {
-            -- S
-            { 1, 0 }, { -1, 0 }
-        },
-        {
-            -- L
-            { 1, 0 }, { -1, 0 }
-        },
-        {
-            -- J
-            { 1, 0 }, { -1, 0 }
-        },
-        {
-            -- O
-            { 1, 0 }, { -1, 0 }
-        },
-        {
-            -- T
-            { 1, 0 }, { -1, 0 }
-        },
+            { { 0, 0 } },
+            { { 0, 0 } },
+            { { 0, 0 } },
+            { { 0, 0 } }
+        }
     },
 
     colTab = {
@@ -258,8 +250,8 @@ local tables = {
                 {
                     gray = gCol.gOutline,
                     gCol.lBlue,
-                    gCol.green,
                     gCol.red,
+                    gCol.green,
                     gCol.orange,
                     gCol.blue,
                     gCol.yellow,
@@ -283,10 +275,10 @@ local tables = {
                 {
                     gray = gCol.gOutline,
                     gColD.lBlue,
-                    gColD.green,
                     gColD.red,
-                    gColD.orange,
+                    gColD.green,
                     gColD.blue,
+                    gColD.orange,
                     gColD.yellow,
                     gColD.purple,
                 }
@@ -323,10 +315,10 @@ local tables = {
             modern = function(gColD, cFAC, cFSpn)
                 return {
                     gColD.lBlue,
+                    gColD.red,
                     gColD.green,
-                    gColD.purple,
-                    gColD.orange,
                     gColD.blue,
+                    gColD.orange,
                     gColD.yellow,
                     gColD.purple,
                     C = cFAC.col[cFAC.index],
@@ -336,10 +328,10 @@ local tables = {
             modernD = function(gCol, cFAC, cFSpn)
                 return {
                     { gCol.lBlue[1] - .2,  gCol.lBlue[2] - .2,  gCol.lBlue[3] - .2 },
-                    { gCol.green[1] - .2,  gCol.green[2] - .2,  gCol.green[3] - .2 },
                     { gCol.red[1] - .2,    gCol.red[2] - .2,    gCol.red[3] - .2 },
-                    { gCol.orange[1] - .2, gCol.orange[2] - .2, gCol.orange[3] - .2 },
+                    { gCol.green[1] - .2,  gCol.green[2] - .2,  gCol.green[3] - .2 },
                     { gCol.blue[1] - .2,   gCol.blue[2] - .2,   gCol.blue[3] - .2 },
+                    { gCol.orange[1] - .2, gCol.orange[2] - .2, gCol.orange[3] - .2 },
                     { gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2 },
                     { gCol.purple[1] - .2, gCol.purple[2] - .2, gCol.purple[3] - .2 },
                     C = cFAC.col[cFAC.index],

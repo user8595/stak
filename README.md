@@ -20,7 +20,7 @@ wip puzzle game
 
 ### # Debug keys
 
-> <i>Only works if launched with <code>debug</code> argument<i>
+> <i>Only works if launched with <code>debug</code> argument</i>
 
 - <code>E</code>/<code>R</code>: Clear board & reset player position
 - <code>-</code>/<code>+</code>: Reduce/increase board size
