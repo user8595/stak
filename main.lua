@@ -511,7 +511,7 @@ local function dOutline(mtrxTab, strokeWd)
 end
 
 -- okay this is crazy
-local function dBPersp(mtrxTab)
+local function dBPersp(mtrxTab, xOff, yOff, isLDlyFade, a)
     if settings.perspBlocks then
         for y, _ in ipairs(mtrxTab) do
             for x, blk in ipairs(mtrxTab[y]) do
@@ -524,12 +524,12 @@ local function dBPersp(mtrxTab)
                             return
                             {
                                 I = { gCol.red[1] - cOff, gCol.red[2] - cOff, gCol.red[3] - cOff },
-                                Z = { gCol.green[1] - cOff,  gCol.green[2] - cOff,  gCol.green[3] - cOff },
+                                Z = { gCol.green[1] - cOff, gCol.green[2] - cOff, gCol.green[3] - cOff },
                                 S = { gCol.purple[1] - cOff, gCol.purple[2] - cOff, gCol.purple[3] - cOff },
                                 L = { gCol.orange[1] - cOff, gCol.orange[2] - cOff, gCol.orange[3] - cOff },
-                                J = { gCol.blue[1] - cOff,   gCol.blue[2] - cOff,   gCol.blue[3] - cOff },
+                                J = { gCol.blue[1] - cOff, gCol.blue[2] - cOff, gCol.blue[3] - cOff },
                                 O = { gCol.yellow[1] - cOff, gCol.yellow[2] - cOff, gCol.yellow[3] - cOff },
-                                T = { gCol.lBlue[1] - cOff,  gCol.lBlue[2] - cOff,  gCol.lBlue[3] - cOff },
+                                T = { gCol.lBlue[1] - cOff, gCol.lBlue[2] - cOff, gCol.lBlue[3] - cOff },
                                 g = { gCol.gray[1] - .1, gCol.gray[2] - .1, gCol.gray[3] - .1 }
                             }
                         else
@@ -546,12 +546,20 @@ local function dBPersp(mtrxTab)
                             }
                         end
                     end
-                    if not game.isFail then
-                        lg.setColor(colors()[blk])
+                    if isLDlyFade then
+                        if not game.isFail then
+                            lg.setColor(colors()[blk][1], colors()[blk][2], colors()[blk][3], lerp.linear(1, 0, a))
+                        else
+                            lg.setColor(colors().g)
+                        end
                     else
-                        lg.setColor(colors().g)
+                        if not game.isFail then
+                            lg.setColor(colors()[blk][1], colors()[blk][2], colors()[blk][3], 1)
+                        else
+                            lg.setColor(colors().g)
+                        end
                     end
-                    dBlocks(blk, x, y, false, false, true, false, true, 1, 0.15)
+                    dBlocks(blk, x + xOff, y + yOff, false, false, true, false, true, 1, 0.15)
                     lg.pop()
                 end
             end
@@ -1506,6 +1514,9 @@ function love.keypressed(k)
 
             if not bMove(ply, ply.x, ply.y + 1, tR, gMtrx) then
                 ply.isAlrRot = true
+            end
+
+            if ply.y == lowestCells(ply, gMtrx) then
                 addMoves(ply, gMtrx)
             end
         end
@@ -1534,6 +1545,9 @@ function love.keypressed(k)
 
             if not bMove(ply, ply.x, ply.y + 1, tR, gMtrx) then
                 ply.isAlrRot = true
+            end
+
+            if ply.y == lowestCells(ply, gMtrx) then
                 addMoves(ply, gMtrx)
             end
         end
@@ -2066,12 +2080,11 @@ function love.draw()
         -- hard drop effect
         hDDrw(stats.hDEfct)
 
-
         if settings.showOutlines then
             dOutline(gMtrx, 2)
         end
 
-        dBPersp(gMtrx)
+        dBPersp(gMtrx, 0, 0)
 
         for y, _ in ipairs(gMtrx) do
             for x, br in ipairs(gMtrx[y]) do
@@ -2082,6 +2095,7 @@ function love.draw()
         end
 
         if not ply.isLnDly and not ply.isEnDly then
+            dBPersp(blocks[ply.currBlk][ply.bRot], ply.x, ply.y, true, ply.lDTimer)
             for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
                 for x, blk in ipairs(blocks[ply.currBlk][ply.bRot][y]) do
                     if y == 1 then
