@@ -1,6 +1,6 @@
 -- high score as of writing: 21850500, lv 110, 1100 lines, 35:33.42 time (no gravity)
 -- highest score as of writing: 19876066, lv 106, 1059 lines, 30:31.67 (60hz w/ gravity without resetting board)
--- fastest 40l as of writing: 00:52.20, 1.99pps
+-- fastest 40l as of writing: 00:48.79, 2.09pps
 
 -- highest secret grade as of writing:
 -- S8, lv 8, 75 lines, 03:33.64 time (ars)
@@ -24,6 +24,10 @@ local kOver = require "lua.kOver"
 local tInfo = require "lua.textInfo"
 local cFlash = require "lua.colFlash"
 local button = require "lua.button"
+local keys = require "lua.default.keys"
+local restartUI = require "lua.restartUI"
+local stats = require "lua.default.stats"
+local gCol = require "lua.gCol"
 
 local fonts = {
     ui = lg.newFont("/assets/fonts/monogram-extended.TTF", 32),
@@ -56,8 +60,8 @@ end
 local textInfo = {}
 
 -- game variables
-local game = require("lua.defGame")
-local settings = require("lua.defSettings")
+local game = require("lua.default.game")
+local settings = require("lua.default.settings")
 local ply = require("lua.ply")
 
 if arg[2] == "debug" then
@@ -65,23 +69,6 @@ if arg[2] == "debug" then
 else
     settings.isDebug = false
 end
-
-local keys = {
-    hDrop = "w",
-    sDrop = "s",
-    left = "a",
-    right = "d",
-    cw = "l",
-    ccw = "k",
-    -- equal to a 180 turn
-    --TODO: Implement 180 turns
-    flip = "j",
-    hold = "space",
-    pause = "p",
-    restart = "return",
-    -- for ingame restart
-    gRestart = "`"
-}
 
 local gMtrx = {}
 local gBoard = {
@@ -96,63 +83,10 @@ local gBoard = {
     visH = 21
 }
 
-local stats = {
-    scr = 0,
-    lv = 1,
-    line = 0,
-    nxtLines = 10,
-    comb = 0,
-    maxComb = 0,
-
-    clr = {
-        sgl = 0,
-        dbl = 0,
-        trp = 0,
-        qd = 0,
-        ac = 0,
-        --TODO: Implement t-spin detection
-        spinT = 0
-    },
-
-    -- equivalent to b2b
-    strk = 0,
-    maxStrk = 0,
-
-    lineClr = 0,
-    time = 0,
-    timeDisp = 0,
-    -- used for pps counter
-    stacks = 0,
-    maxPPS = 0,
-    -- for pause delay
-    pTime = 0,
-    lClearUI = {},
-    lEffect = {},
-    -- for locking effect
-    lkEfct = {},
-    -- for hard drop effect
-    hDEfct = {},
-    clearedLinesYPos = {}
-}
-
 for _ = 1, gBoard.gH, 1 do
     table.insert(gMtrx, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })
 end
 
-local gCol = {
-    bg = { .1, .1, .18 },
-    red = { .95, .55, .66 },
-    green = { .65, .89, .63 },
-    purple = { .80, .55, .66 },
-    orange = { .98, .70, .53 },
-    blue = { .54, .71, .98 },
-    yellow = { .98, .89, .69 },
-    lBlue = { .54, .86, .92 },
-    white = { .80, .84, .96 },
-    gray = { .35, .36, .44 },
-    gOutline = { .58, .60, .70 },
-    nBox = { .58, .60, .70, .35 }
-}
 local gColD = {
     red = { gCol.red[1] - .35, gCol.red[2] - .35, gCol.red[3] - .35 },
     green = { gCol.green[1] - .35, gCol.green[2] - .35, gCol.green[3] - .35 },
@@ -349,6 +283,7 @@ end
 local function gameInit(plyVar, sts, gameVar)
     plyVar.arrTimer, plyVar.dasTimer = 0, 0
     plyVar.gTimer, plyVar.grav = 0, gTable.grav[1]
+    -- index table
     plyVar.gMult = 1
     plyVar.isAlreadyHold = false
     plyVar.isAlrRot = false
@@ -368,6 +303,7 @@ local function gameInit(plyVar, sts, gameVar)
     sts.strk, sts.comb = 0, 0
     sts.nxtLines = 10
 
+    sts.qrTime = 0
     gameVar.is40LClr = false
     tClear(sts.lClearUI)
 end
@@ -482,6 +418,7 @@ local function dBlocks(bl, x, y, isGhost, isOutline, noColors, lDlyFade, isHDrop
 
     if img == nil then
         if isHDrop then
+            -- just use translate to move the 3d block effect
             lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1), gBoard.w,
                 gBoard.h * hdHgt)
         end
@@ -567,6 +504,55 @@ local function dOutline(mtrxTab, strokeWd)
                             gBoard.w + (strokeWd * 2),
                             gBoard.h + (strokeWd * 2))
                     end
+                end
+            end
+        end
+    end
+end
+
+-- okay this is crazy
+local function dBPersp(mtrxTab)
+    if settings.perspBlocks then
+        for y, _ in ipairs(mtrxTab) do
+            for x, blk in ipairs(mtrxTab[y]) do
+                if blk ~= 0 then
+                    lg.push()
+                    lg.translate(0, -2.5)
+                    local colors = function()
+                        local cOff = .175
+                        if settings.rotSys == "ARS" then
+                            return
+                            {
+                                I = { gCol.red[1] - cOff, gCol.red[2] - cOff, gCol.red[3] - cOff },
+                                Z = { gCol.green[1] - cOff,  gCol.green[2] - cOff,  gCol.green[3] - cOff },
+                                S = { gCol.purple[1] - cOff, gCol.purple[2] - cOff, gCol.purple[3] - cOff },
+                                L = { gCol.orange[1] - cOff, gCol.orange[2] - cOff, gCol.orange[3] - cOff },
+                                J = { gCol.blue[1] - cOff,   gCol.blue[2] - cOff,   gCol.blue[3] - cOff },
+                                O = { gCol.yellow[1] - cOff, gCol.yellow[2] - cOff, gCol.yellow[3] - cOff },
+                                T = { gCol.lBlue[1] - cOff,  gCol.lBlue[2] - cOff,  gCol.lBlue[3] - cOff },
+                                g = { gCol.gray[1] - .1, gCol.gray[2] - .1, gCol.gray[3] - .1 }
+                            }
+                        else
+                            return
+                            {
+                                I = { gCol.lBlue[1] - cOff, gCol.lBlue[2] - cOff, gCol.lBlue[3] - cOff },
+                                Z = { gCol.red[1] - cOff, gCol.red[2] - cOff, gCol.red[3] - cOff },
+                                S = { gCol.green[1] - cOff, gCol.green[2] - cOff, gCol.green[3] - cOff },
+                                L = { gCol.orange[1] - cOff, gCol.orange[2] - cOff, gCol.orange[3] - cOff },
+                                J = { gCol.blue[1] - cOff, gCol.blue[2] - cOff, gCol.blue[3] - cOff },
+                                O = { gCol.yellow[1] - cOff, gCol.yellow[2] - cOff, gCol.yellow[3] - cOff },
+                                T = { gCol.purple[1] - cOff, gCol.purple[2] - cOff, gCol.purple[3] - cOff },
+                                g = { gCol.gray[1] - .1, gCol.gray[2] - .1, gCol.gray[3] - .1 }
+                            }
+                        end
+                    end
+                    if not game.isFail then
+                        lg.setColor(colors()[blk])
+                    else
+                        lg.setColor(colors().g)
+                    end
+                    dBlocks(blk, x, y, false, false, true, false, true, 1, 0.15)
+                    lg.pop()
                 end
             end
         end
@@ -866,7 +852,7 @@ end
 
 -- spin detection
 --TODO: Add mini t-spin detection
-local function isSpin(xOff, yOff, mtrxTab)
+local function isSpin(xOff, yOff, mtrxTab, t)
     -- corner offsets
     local cOff = {
         { 0, 0 }, -- top left
@@ -903,7 +889,7 @@ local function isSpin(xOff, yOff, mtrxTab)
 end
 
 -- for wall kicks
-local function bRotate(plyVar, tX, tY, bRot, bRotPrev, mtrxTab)
+local function bRotate(plyVar, tX, tY, d, bRot, bRotPrev, mtrxTab)
     -- TODO: Fix wrong wallkicks
     if settings.rotSys == "ARS" then
         if blocks[plyVar.currBlk] ~= nil then
@@ -929,35 +915,26 @@ local function bRotate(plyVar, tX, tY, bRot, bRotPrev, mtrxTab)
             return false, tX, tY, 1
         end
     elseif settings.rotSys == "SRS" then
-        --TODO: Fix I piece offsets
         local tR, tRPrev
         if plyVar.currBlk ~= 1 and plyVar.currBlk ~= 6 then
             tR, tRPrev = gTable.wKicks[1][bRot], gTable.wKicks[1][bRotPrev]
         elseif plyVar.currBlk == 1 then
-            tR, tRPrev = gTable.wKicks[2][bRot], gTable.wKicks[2][bRotPrev]
+            tR, tRPrev = gTable.wKicks[2][d][bRot], gTable.wKicks[2][d][bRotPrev]
         elseif plyVar.currBlk == 6 then
             tR, tRPrev = gTable.wKicks[3][bRot], gTable.wKicks[3][bRotPrev]
         end
 
         for t = 1, #tRPrev do
-            local dx, dy = tRPrev[t][1] - tR[t][1], tRPrev[t][2] - tR[t][2]
-            if bMove(plyVar, tX + dx, tY - dy, bRot, mtrxTab) then
-                plyVar.lDTimer = 0
-                -- tClear(textInfo)
-                -- tInfo.new(textInfo,
-                --     "tR: " ..
-                --     tR[t][1] .. ", " .. tR[t][2] .. ", tRPrev: " .. tRPrev[t][1] .. ", " .. tRPrev[t][2], 0,
-                --     wHg - 50, true,
-                --     gCol.yellow, 1, 1)
-                -- tInfo.new(textInfo,
-                --     "index: " .. t .. ", pox: " .. dx .. ", " .. dy, 0,
-                --     wHg - 50, true,
-                --     gCol.lBlue, 1, 1)
-                -- tInfo.new(textInfo,
-                --     "bRot: " .. bRot .. ", bRotPrev: " .. bRotPrev, 0,
-                --     wHg - 50, true,
-                --     gCol.orange, 1, 1)
-                return true, tX + dx, tY - dy, t
+            if plyVar.currBlk ~= 1 then
+                if bMove(plyVar, tX + (tRPrev[t][1] - tR[t][1]), tY - (tRPrev[t][2] - tR[t][2]), bRot, mtrxTab) then
+                    plyVar.lDTimer = 0
+                    return true, tX + (tRPrev[t][1] - tR[t][1]), tY - (tRPrev[t][2] - tR[t][2]), t
+                end
+            else
+                if bMove(plyVar, tX + tR[t][1], tY - tR[t][2], bRot, mtrxTab) then
+                    plyVar.lDTimer = 0
+                    return true, tX + tR[t][1], tY - tR[t][2], t
+                end
             end
         end
         return false, tX, tY
@@ -986,6 +963,11 @@ local function moveCells(y, mtrxTab, boardVar)
         for clrX = 1, boardVar.visW do
             mtrxTab[clrY][clrX] = mtrxTab[clrY - 1][clrX]
         end
+    end
+
+    -- clear the first row to prevent duplicates
+    for clrX = 1, boardVar.visW do
+        mtrxTab[1][clrX] = 0
     end
 end
 
@@ -1144,9 +1126,7 @@ end
 --TODO: Finish move reset functionality
 local function addMoves(plyVar, mtrxVar)
     if game.useMoveReset then
-        if not bMove(plyVar, plyVar.x, plyVar.y + 1, plyVar.bRot, mtrxVar) then
-            plyVar.moveR = plyVar.moveR + 1
-        end
+        plyVar.moveR = plyVar.moveR + 1
     end
 end
 
@@ -1439,7 +1419,7 @@ function love.keypressed(k)
         end
     end
 
-    if not game.isPaused and not game.isPauseDelay and not game.isFail and not ply.isLnDly and not ply.isEnDly then
+    if not game.isPaused and not game.isPauseDelay and not game.isFail and not game.isCountdown and not ply.isLnDly and not ply.isEnDly then
         if k == keys.left then
             if bMove(ply, ply.x - 1, ply.y, ply.bRot, gMtrx) then
                 ply.x = ply.x - 1
@@ -1469,15 +1449,14 @@ function love.keypressed(k)
         end
 
         if k == keys.hDrop then
+            local hY = lowestCells(ply, gMtrx, false)
             -- so many edge cases
             if settings.hDropEffect and bMove(ply, ply.x, ply.y + 1, ply.bRot, gMtrx) then
                 newLockEffect(stats.hDEfct, blocks, ply, true)
             end
 
-            while bMove(ply, ply.x, ply.y + 1, ply.bRot, gMtrx) do
-                ply.y = ply.y + 1
-                stats.scr = stats.scr + 2
-            end
+            ply.y = hY
+            stats.scr = stats.scr + (2 * hY)
 
             -- ignore locking piece on sonic lock
             if not game.useSonicDrop then
@@ -1507,10 +1486,13 @@ function love.keypressed(k)
             local tR = ply.bRot - 1
             local tRPrev = ply.bRot
 
+            ply.d = 1
+
             if tR < 1 then
                 tR = #blocks[ply.currBlk]
             end
-            local bR, dx, dy = bRotate(ply, ply.x, ply.y, tR, tRPrev, gMtrx)
+
+            local bR, dx, dy = bRotate(ply, ply.x, ply.y, ply.d, tR, tRPrev, gMtrx)
             if settings.rotSys ~= "SRS" then
                 if bR and bMove(ply, ply.x, ply.y, tR, gMtrx) then
                     ply.bRot = tR
@@ -1521,21 +1503,24 @@ function love.keypressed(k)
                     ply.bRot = tR
                 end
             end
+
             if not bMove(ply, ply.x, ply.y + 1, tR, gMtrx) then
                 ply.isAlrRot = true
-                if ply.y == lowestCells(ply, gMtrx) then
-                    addMoves(ply, gMtrx)
-                end
+                addMoves(ply, gMtrx)
             end
         end
 
         if k == keys.cw then
             local tR = ply.bRot + 1
             local tRPrev = ply.bRot
+
+            ply.d = 2
+
             if tR > #blocks[ply.currBlk] then
                 tR = 1
             end
-            local bR, dx, dy = bRotate(ply, ply.x, ply.y, tR, tRPrev, gMtrx)
+
+            local bR, dx, dy = bRotate(ply, ply.x, ply.y, ply.d, tR, tRPrev, gMtrx)
             if settings.rotSys ~= "SRS" then
                 if bR and bMove(ply, ply.x, ply.y, tR, gMtrx) then
                     ply.bRot = tR
@@ -1546,11 +1531,10 @@ function love.keypressed(k)
                     ply.bRot = tR
                 end
             end
+
             if not bMove(ply, ply.x, ply.y + 1, tR, gMtrx) then
                 ply.isAlrRot = true
-                if ply.y == lowestCells(ply, gMtrx) then
-                    addMoves(ply, gMtrx)
-                end
+                addMoves(ply, gMtrx)
             end
         end
 
@@ -1714,12 +1698,35 @@ function love.update(dt)
         end
     end
 
-    if not game.isPaused and not game.isPauseDelay and not game.isFail then
+    -- duct tape
+    if ply.y > gBoard.visH then
+        ply.y = gBoard.visH - lowestCells(ply, gMtrx, true)
+    end
+
+    if game.isFail then
+        if stats.qrTime > 0 then
+            stats.qrTime = stats.qrTime - dt * (8 * settings.qRestartTime)
+        else
+            stats.qrTime = 0
+        end
+    end
+
+    if not game.isPaused and not game.isPauseDelay and not game.isFail and not game.isCountdown then
         stats.time = stats.time + dt
         stats.timeDisp = string.format("%02d", math.floor(stats.time / 60)) ..
             ":" .. string.format("%02d", stats.time % 60) .. "." .. string.format("%.2f", tMs):sub(3, -1)
 
         kOver.updKey(overlays)
+
+        if restartUI.update(dt) then
+            game.isFail = false
+            game.showFailColors = false
+            gameInit(ply, stats, game)
+            mtrxClr(gMtrx)
+            bagReset(ply)
+            plyInit(ply)
+            stats.qrTime = 0
+        end
 
         -- line delay function
         if ply.isLnDly then
@@ -1893,17 +1900,29 @@ function love.update(dt)
                 else
                     -- hopefully this works as intended
                     ply.y = lowestCells(ply, gMtrx, false)
-                    if ply.lDTimer < ply.lDelay then
-                        ply.lDTimer = ply.lDTimer + dt
-                    else
-                        if not ply.isHDrop then
-                            stats.stacks = stats.stacks + 1
-                            bAdd(ply.x, ply.y, blocks, gMtrx)
-                        end
-
+                    -- lock piece if player reached move limit
+                    if ply.moveR > ply.mRLimit and not ply.isHDrop then
+                        ply.lDTimer = 0
+                        stats.stacks = stats.stacks + 1
+                        bAdd(ply.x, ply.y, blocks, gMtrx)
                         if not game.isFail then
                             plyInit(ply)
                             ply.isEnDly = true
+                        end
+                        ply.moveR = 0
+                    else
+                        if ply.lDTimer < ply.lDelay then
+                            ply.lDTimer = ply.lDTimer + dt
+                        else
+                            if not ply.isHDrop then
+                                stats.stacks = stats.stacks + 1
+                                bAdd(ply.x, ply.y, blocks, gMtrx)
+                            end
+
+                            if not game.isFail then
+                                plyInit(ply)
+                                ply.isEnDly = true
+                            end
                         end
                     end
                 end
@@ -2047,9 +2066,12 @@ function love.draw()
         -- hard drop effect
         hDDrw(stats.hDEfct)
 
+
         if settings.showOutlines then
             dOutline(gMtrx, 2)
         end
+
+        dBPersp(gMtrx)
 
         for y, _ in ipairs(gMtrx) do
             for x, br in ipairs(gMtrx[y]) do
@@ -2258,6 +2280,9 @@ function love.draw()
         button.draw(gameBtns)
     end
 
+    -- game quick restart toggle ui
+    restartUI.draw()
+
     -- pause menu
     if game.isPaused then
         lg.setColor(gCol.bg)
@@ -2304,8 +2329,10 @@ function love.draw()
                 "\nlowestCells: " ..
                 lowestCells(ply, gMtrx, false) ..
                 " / " ..
-                lowestCells(ply, gMtrx, true) .. "/" .. gBoard.visH - lowestCells(ply, gMtrx, false) ..
-                "\nnext: " .. table.concat(ply.next, " ,") .. "\nnHist: " .. table.concat(ply.nHist, ", ") ..
+                lowestCells(ply, gMtrx, true) ..
+                "\nnext: " ..
+                table.concat(ply.next, " ,") ..
+                "\nnHist: " .. table.concat(ply.nHist, ", ") .. "\nqrTime: " .. stats.qrTime ..
                 "\nclearedLinesYPos: " .. table.concat(stats.clearedLinesYPos, " ,") ..
                 "\nuseVSync: " .. tostring(settings.useVSync),
                 fonts.othr, 10, 10)
@@ -2316,7 +2343,7 @@ function love.draw()
                 ply.y ..
                 "\nvisW: " .. gBoard.visW .. "\nvisH: " .. gBoard.visH ..
                 "\nbRot: " ..
-                ply.bRot .. " / " .. #blocks[ply.currBlk] ..
+                ply.bRot .. " / " .. #blocks[ply.currBlk] .. "\nd: " .. ply.d ..
                 "\ncurrBlk: " ..
                 ply.currBlk .. " / " .. #blocks ..
                 "\ndasTimer: " ..

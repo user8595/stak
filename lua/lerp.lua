@@ -8,6 +8,9 @@ local lerp = {
     end,
     easeOutQuart = function(a, b, t)
         return a + 1 - math.pow(1 - t, 4) * (b - a)
+    end,
+    easeOutQuad = function (a, b, t)
+        return a + (1 - (1 - t) * (1 - t)) * (b - a)
     end
 }
 

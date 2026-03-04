@@ -5,6 +5,7 @@ local ply = {
     y = 0,
     currBlk = 1,
     bRot = 1,
+    d = 1, -- 1: ccw, 2: cw
     next = {},
     nHist = {},
     nDisp = 5,
@@ -41,8 +42,8 @@ local ply = {
     grav = gTable.grav[1],
     gMult = 1,
 
-    --TODO: Implement move reset limit
     moveR = 0, -- max. 15 steps
+    mRLimit = 15,
 
     isIRS = false,
 

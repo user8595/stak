@@ -1,20 +1,22 @@
 local settings = {
     showGrid = true,
-    showOutlines = true,
+    --TODO: Improve outline style (increase height when persp. effect is on?)
+    showOutlines = false,
     showGhost = true,
     hDropEffect = true,
     coloredHDropEffect = true,
+    perspBlocks = true,
     lineEffect = true,
     lockEffect = true,
     showDanger = true,
     showKOverlay = true,
     -- small timer text
     altTimerUI = true,
+    qRestartTime = 0.75,
     scale = 1,
     rotSys = "SRS",     -- "ARS", "SRS"
     bagType = "modern", -- "modern", "classicM", "classicRand"
 
-    -- broken for now
     useIRS = true,
     -- broken for now
     useVSync = true,

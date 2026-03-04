@@ -13,6 +13,7 @@ wip puzzle game
 - <code>L</code>: Flip piece 180º (unimplemented for now)
 - <code>Space</code>: Hold piece
 - <code>Escape</code>/<code>P</code>: Pause/unpause game
+- <code>`</code>: Quick restart game
 - <code>O</code>: Switch timer UI
 - <code>F6</code>: Toggle VSync
 - <code>F7</code>: Hide/show key overlay
