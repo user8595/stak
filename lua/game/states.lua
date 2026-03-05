@@ -1,0 +1,431 @@
+local lmth = love.math
+
+local tClear = require "table.clear"
+local effect = require "lua.game.effect"
+local game = require "lua.default.game"
+local gTable = require "lua.tables"
+
+local states = {}
+local bagDef = { 1, 5, 4, 6, 3, 7, 2 }
+
+-- https://stackoverflow.com/questions/35572435/how-do-you-do-the-fisher-yates-shuffle-in-lua/68486276#68486276
+local function shuffle(t)
+    local s = {}
+    for i = 1, #t do s[i] = t[i] end
+    for i = #t, 2, -1 do
+        local j = lmth.random(i)
+        s[i], s[j] = s[j], s[i]
+    end
+    return s
+end
+
+local function concatTab(t1, t2)
+    for i = 1, #t2 do
+        t1[#t1 + 1] = t2[i]
+    end
+    return t1
+end
+
+function tabContains(tab, value)
+    for _, tab in ipairs(tab) do
+        if tab == value then
+            return true
+        end
+    end
+    return false
+end
+
+-- line clear ui effect
+local function newLClrUI(sts, str, cBlk, aSpd)
+    -- "cBlk" can be color block, or current block, or a string for color
+    table.insert(sts.lClearUI, { str = str, cBlk = cBlk, a = 1, aSpd = aSpd, s = 1, yOff = 0 })
+end
+
+function states.lowestCells(plyVar, mtrxTab, blkTab, gBoard, isInverse)
+    if not isInverse then
+        local tX, tY = plyVar.x, plyVar.y
+        while states.bMove(plyVar, blkTab, gBoard, tX, tY + 1, plyVar.bRot, mtrxTab) do
+            tY = tY + 1
+        end
+        return tY
+    else
+        for i = plyVar.y, 1, -1 do
+            if states.bMove(plyVar, blkTab, gBoard, plyVar.x, plyVar.y, plyVar.bRot, mtrxTab) then
+                return i + 1
+            end
+        end
+        return 1
+    end
+end
+
+-- line clear function
+function states.clearCells(y, mtrxTab, boardVar, sts, settings)
+    sts.line = sts.line + 1
+    sts.lineClr = sts.lineClr + 1
+
+    -- trigger line animation function
+    if settings.lineEffect then
+        -- for offset
+        effect.newLineEffect(y - 1, boardVar, sts.lEffect, false, true)
+    end
+
+    -- clear lines with empty tiles
+    for clrX = 1, boardVar.visW do
+        mtrxTab[y][clrX] = 0
+    end
+end
+
+function states.moveCells(y, mtrxTab, boardVar)
+    for clrY = y, 2, -1 do
+        for clrX = 1, boardVar.visW do
+            mtrxTab[clrY][clrX] = mtrxTab[clrY - 1][clrX]
+        end
+    end
+
+    -- clear the first row to prevent duplicates
+    for clrX = 1, boardVar.visW do
+        mtrxTab[1][clrX] = 0
+    end
+end
+
+function states.bMove(plyVar, blkTab, brdTab, tX, tY, tRot, mtrxTab)
+    if blkTab[plyVar.currBlk][tRot] ~= nil then
+        for y = 1, #blkTab[plyVar.currBlk][tRot] do
+            for x = 1, #blkTab[plyVar.currBlk][tRot][y] do
+                local testX, testY = tX + x, tY + y
+                if blkTab[plyVar.currBlk][tRot][y][x] ~= 0 then
+                    if testX < 1 or testX > brdTab.visW or testY < 1 or testY > brdTab.visH then
+                        return false
+                    else
+                        if mtrxTab[testY][testX] ~= 0 then
+                            return false
+                        end
+                    end
+                end
+            end
+        end
+    else
+        return false
+    end
+    return true
+end
+
+-- for wall kicks
+function states.bRotate(plyVar, settings, tX, tY, d, bRot, bRotPrev, blkTab, brdTab, gTable, mtrxTab)
+    -- TODO: Fix wrong wallkicks
+    if settings.rotSys == "ARS" then
+        if blkTab[plyVar.currBlk] ~= nil then
+            local bLen = blkTab[plyVar.currBlk]
+            if #bLen > 1 then
+                if #bLen[bRot] <= 3 and bLen ~= 1 then -- not an O piece
+                    if plyVar.currBlk ~= 1 then        -- not an I piece
+                        if not states.bMove(plyVar, blkTab, brdTab, tX - 1, tY, bRot, mtrxTab) then
+                            plyVar.x = plyVar.x + 1
+                        end
+                        if not states.bMove(plyVar, blkTab, brdTab, tX + 1, tY, bRot, mtrxTab) then
+                            plyVar.x = plyVar.x - 1
+                        end
+                    else
+                        if not states.bMove(plyVar, blkTab, brdTab, tX, tY, bRot, mtrxTab) then
+                            return false, tX, tY, 1
+                        end
+                    end
+                end
+            end
+            return true, tX, tY, 1
+        else
+            return false, tX, tY, 1
+        end
+    elseif settings.rotSys == "SRS" then
+        local tR, tRPrev
+        if plyVar.currBlk ~= 1 and plyVar.currBlk ~= 6 then
+            tR, tRPrev = gTable.wKicks[1][bRot], gTable.wKicks[1][bRotPrev]
+        elseif plyVar.currBlk == 1 then
+            tR, tRPrev = gTable.wKicks[2][d][bRot], gTable.wKicks[2][d][bRotPrev]
+        elseif plyVar.currBlk == 6 then
+            tR, tRPrev = gTable.wKicks[3][bRot], gTable.wKicks[3][bRotPrev]
+        end
+
+        for t = 1, #tRPrev do
+            if plyVar.currBlk ~= 1 then
+                if states.bMove(plyVar, blkTab, brdTab, tX + (tRPrev[t][1] - tR[t][1]), tY - (tRPrev[t][2] - tR[t][2]), bRot, mtrxTab) then
+                    plyVar.lDTimer = 0
+                    return true, tX + (tRPrev[t][1] - tR[t][1]), tY - (tRPrev[t][2] - tR[t][2]), t
+                end
+            else
+                if states.bMove(plyVar, blkTab, brdTab, tX + tR[t][1], tY - tR[t][2], bRot, mtrxTab) then
+                    plyVar.lDTimer = 0
+                    return true, tX + tR[t][1], tY - tR[t][2], t
+                end
+            end
+        end
+        return false, tX, tY
+    end
+end
+
+-- block placement & line clear logic
+function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
+    local clear = true
+    local cAnim = false
+
+    if bL[plyVar.currBlk][plyVar.bRot] ~= nil then
+        for y, _ in ipairs(bL[plyVar.currBlk][plyVar.bRot]) do
+            for x, blk in ipairs(bL[plyVar.currBlk][plyVar.bRot][y]) do
+                if blk ~= 0 then
+                    if bY + y <= #mtrxTab then
+                        mtrxTab[bY + y][bX + x] = blk
+                    end
+                end
+            end
+        end
+    else
+        newLClrUI(sts, "?", plyVar.currBlk, 0.5)
+        print("!!! this should NOT happen ingame (blocks wont place normally) currBlk: " ..
+            plyVar.currBlk .. " bRot: " .. plyVar.bRot .. " x: " .. plyVar.x .. " y: " .. plyVar.y .. " !!!")
+    end
+
+    -- for line clear function
+    for y = 1, brdTab.visH do
+        clear = true
+
+        for x = 1, brdTab.visW do
+            if mtrxTab[y][x] == 0 then
+                clear = false
+                break
+            end
+        end
+
+        if clear then
+            cAnim = true
+            -- store current y positions for cleared lines for use with moveCells() function
+            -- same function as the hard drop effect
+            table.insert(sts.clearedLinesYPos, y)
+            print("---------- cAnim: " .. tostring(cAnim) .. " ----------")
+            states.clearCells(y, mtrxTab, brdTab, sts, settings)
+            clear = false
+        end
+    end
+
+    if settings.lockEffect then
+        effect.newLockEffect(sts.lkEfct, bL, plyVar, false)
+    end
+
+    if cAnim then
+        -- start line delay
+        plyVar.isLnDly = true
+
+        -- clear line clear ui on new line clear
+        tClear(sts.lClearUI)
+        if #sts.lkEfct > 0 then
+            tClear(sts.lkEfct)
+        end
+    end
+
+    if states.isAllClr(mtrxTab, brdTab) then
+        print("+16000 score points from aClear")
+        sts.scr = sts.scr + 16000
+        sts.clr.ac = sts.clr.ac + 1
+
+        if settings.lineEffect then
+            effect.newLineEffect(nil, brdTab, sts.lEffect, true, false)
+        end
+        newLClrUI(sts, "C", "C", 0.5)
+    end
+
+
+    --if isSpin(plyVar.x, plyVar.y, gMtrx) and not cAnim and plyVar.isAlrRot then
+    --   tClear(sts.lClearUI)
+    --    newLClrUI(sts, "T", "T", 0.5)
+    --   sts.scr = sts.scr + 500
+    --    sts.clr.spinT = sts.clr.spinT + 1
+    --end
+
+    -- events after line clears
+    if cAnim then
+        print("lines: " .. sts.lineClr)
+        sts.comb = sts.comb + 1
+        sts.scr = sts.scr + (sts.lv * ((200 + (200 * sts.lineClr)) + (50 * sts.comb)))
+        print(sts.scr + (sts.lv * ((200 + (200 * sts.lineClr)) + (200 * sts.comb))) ..
+            " (+" .. (sts.lv * ((200 + (200 * sts.lineClr)) + (200 * sts.comb))) .. ")" ..
+            " prev. curr score: " .. sts.scr .. " clear: " .. tostring(clear))
+
+        newLClrUI(sts, sts.lineClr, plyVar.currBlk, 0.5)
+
+        if sts.lineClr == 1 then
+            sts.clr.sgl = sts.clr.sgl + 1
+            sts.strk = 0
+        elseif sts.lineClr == 2 then
+            sts.clr.dbl = sts.clr.dbl + 1
+            sts.strk = 0
+        elseif sts.lineClr == 3 then
+            sts.clr.trp = sts.clr.trp + 1
+            sts.strk = 0
+        elseif sts.lineClr == 4 then
+            sts.clr.qd = sts.clr.qd + 1
+            sts.strk = sts.strk + 1
+        end
+
+        -- if isSpin(plyVar.x, plyVar.y, gMtrx) and plyVar.isAlrRot then
+        --     tClear(sts.lClearUI)
+        --     newLClrUI(sts, "T", "T", 0.5)
+        --     sts.scr = sts.scr + (2000 * sts.lineClr)
+        --     sts.clr.spinT = sts.clr.spinT + 1
+        -- end
+
+        if sts.line > sts.nxtLines then
+            sts.lv = sts.lv + 1
+
+            -- gravity increase function
+            if game.isGravityInc then
+                if sts.lv < #gTable.grav then
+                    plyVar.grav = gTable.grav[sts.lv]
+                    print("increased gravity (grav: " .. plyVar.grav .. ")")
+                else
+                    plyVar.grav = 0
+                    if plyVar.gMult < #gTable.gravMult then
+                        plyVar.gMult = plyVar.gMult + 1
+                        print("increased gravity multiplier (gMult: " .. plyVar.gMult .. ")")
+                    end
+                end
+            end
+
+            sts.nxtLines = sts.nxtLines + 10
+        end
+        sts.lineClr = 0
+        cAnim = false
+        print("---------- cAnim: " .. tostring(cAnim) .. " ----------")
+    else
+        -- reset combo counter if no line clears
+        sts.comb = 0
+    end
+end
+
+-- game bag function
+function states.bagInit(plyVar, settings)
+    if settings.bagType == "modern" then
+        local bagShuf = shuffle(bagDef)
+        plyVar.next = concatTab(plyVar.next, bagShuf)
+    elseif settings.bagType == "classicM" then
+        -- might improve this later
+        local firstPc = { 1, 5, 4, 7 }
+        for i = 1, plyVar.nDisp do
+            if #plyVar.nHist ~= 4 then
+                table.insert(plyVar.next, firstPc[lmth.random(1, #firstPc)])
+                table.insert(plyVar.next, bagDef[love.math.random(1, #bagDef)])
+
+                -- tInfo.new(textInfo, "initialized next queues", 0, wHg - 50, true, { 1, 1, 1, 1 }, 1, 1)
+            else
+                local nPiece
+                for _ = 1, 4 do
+                    nPiece = bagDef[lmth.random(1, #bagDef)]
+                    -- tInfo.new(textInfo, "rolled next queues (next piece: " .. nPiece .. ")", 0, wHg - 50, true,
+                    --    gCol.yellow,
+                    --    1, 1)
+                    if not tabContains(plyVar.nHist, nPiece) then
+                        --tInfo.new(textInfo, "stopped rolling pieces", 0, wHg - 50, true,
+                        --   gCol.green, 1, 1)
+                        break
+                    end
+                end
+                table.insert(plyVar.next, nPiece)
+            end
+        end
+    elseif settings.bagType == "classicRand" then
+        for _ = 1, #bagDef do
+            local nPiece = bagDef[love.math.random(1, #bagDef)]
+            if not tabContains(plyVar.nHist, nPiece) then
+                nPiece = bagDef[love.math.random(1, #bagDef)]
+            end
+            table.insert(plyVar.next, nPiece)
+        end
+    end
+    if plyVar.currBlk ~= plyVar.next[1] then
+        plyVar.currBlk = plyVar.next[1]
+    end
+end
+
+function states.addHistory(plyVar, settings)
+    -- add current piece to history if supported
+    if settings.bagType == "classicM" then
+        if #plyVar.nHist < 4 then
+            table.insert(plyVar.nHist, plyVar.next[1])
+        else
+            tClear(plyVar.nHist)
+            table.insert(plyVar.nHist, plyVar.next[1])
+        end
+    elseif settings.bagType == "classicRand" then
+        if #plyVar.nHist < 1 then
+            table.insert(plyVar.nHist, plyVar.next[1])
+        else
+            tClear(plyVar.nHist)
+            table.insert(plyVar.nHist, plyVar.next[1])
+        end
+    end
+end
+
+function states.bagReset(plyVar, settings)
+    tClear(plyVar.next)
+    tClear(plyVar.nHist)
+    states.bagInit(plyVar, settings)
+    states.addHistory(plyVar, settings)
+end
+
+function states.nextQueue(plyVar, settings)
+    if #plyVar.next > plyVar.nDisp + 1 then
+        table.remove(plyVar.next, 1)
+        plyVar.currBlk = plyVar.next[1]
+    else
+        -- reshuffle bag on end of next queue
+        table.remove(plyVar.next, 1)
+        plyVar.currBlk = plyVar.next[1]
+        states.bagInit(plyVar, settings)
+    end
+end
+
+-- game fail detection
+function states.isGFail(plyVar, blkTab, brdTab, mtrxTab)
+    if not states.bMove(plyVar, blkTab, brdTab, plyVar.x, plyVar.y, plyVar.bRot, mtrxTab) then
+        return true
+    end
+end
+
+-- spin detection
+function states.isSpin(xOff, yOff, mtrxTab, t)
+
+end
+
+function states.isAllClr(mtrxTab, brdTab)
+    for y = 1, brdTab.visH do
+        for x = 1, brdTab.visW do
+            if mtrxTab[y][x] ~= 0 then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+-- danger zone (near failure) check
+function states.dangerCheck(mtrxTab, gBoard)
+    local dangerY = 8 -- offset by -2, then 8 == 6 from first row
+    for y, _ in ipairs(mtrxTab) do
+        for x, _ in ipairs(mtrxTab[y]) do
+            if x > math.floor(gBoard.visW / 6) and x < gBoard.visW - (math.floor(gBoard.visW / 6)) then
+                -- lv 1
+                if y > dangerY - 2 and y < dangerY then
+                    if mtrxTab[y][x] ~= 0 then
+                        return 1
+                    end
+                    -- lv 2
+                elseif y < dangerY - 2 then
+                    if mtrxTab[y][x] ~= 0 then
+                        return 2
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+return states
