@@ -1,6 +1,7 @@
 local lg = love.graphics
 local lerp = require "lua.lerp"
 local gfx = require "lua.game.gfx"
+local ipairs = ipairs
 local effect = {}
 
 -- line clear effect
@@ -70,8 +71,8 @@ function effect.newLockEffect(lockEffectTab, blkTab, plyTab, mtrxTab, brdTab, st
             x = plyTab.x,
             y = plyTab.y,
             -- had to pass it as a arg. because of a loop error
-            h = states.lowestCells(plyTab, mtrxTab, blkTab, brdTab, false) -
-            states.lowestCells(plyTab, mtrxTab, blkTab, brdTab, true),
+            h = states.lowestCells(plyTab, mtrxTab, blkTab, brdTab) -
+                plyTab.y,
             a = 0.15,
             blk = blkTab[plyTab.currBlk][plyTab.bRot],
             HDrop = true

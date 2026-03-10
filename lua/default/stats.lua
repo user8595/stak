@@ -1,3 +1,5 @@
+local gTable = require "lua.tables"
+
 local stats = {
     scr = 0,
     lv = 1,
@@ -13,7 +15,9 @@ local stats = {
         qd = 0,
         ac = 0,
         --TODO: Implement t-spin detection
-        spinT = 0
+        spinTS = 0,
+        spinTD = 0,
+        spinTT = 0
     },
 
     -- equivalent to b2b
@@ -22,15 +26,21 @@ local stats = {
 
     lineClr = 0,
     time = 0,
-    timeDisp = 0,
+    timeDisp = "00:00.00",
     -- used for pps counter
     stacks = 0,
+    currPPS = 0,
     maxPPS = 0,
     -- for pause delay
     pTime = 0,
     -- for quick restart
     qrTime = 0,
+    scrtG = 1, -- index value
+    resetPosDbg = 0,
+    clrDbg = 0,
+    sGFill = {},
     lClearUI = {},
+    lClearAftrImg = {},
     lEffect = {},
     -- for locking effect
     lkEfct = {},
@@ -38,5 +48,9 @@ local stats = {
     hDEfct = {},
     clearedLinesYPos = {}
 }
+
+for _ = 1, 20 do
+    table.insert(stats.sGFill, false)
+end
 
 return stats

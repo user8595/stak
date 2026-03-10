@@ -1,4 +1,5 @@
 local lg = love.graphics
+local ipairs = ipairs
 local fontInfo = lg.newFont("/assets/fonts/Picopixel.ttf", 14)
 fontInfo:setFilter("nearest", "nearest")
 
@@ -42,10 +43,10 @@ local textInfo = {
                 end
             end
 
-            if scale > 0.75 then
-                fontInfo:release()
-                fontInfo = lg.newFont("/assets/fonts/Picopixel.ttf", 14 * scale)
-            end
+        end
+        if scale > 0.75 then
+            fontInfo:release()
+            fontInfo = lg.newFont("/assets/fonts/Picopixel.ttf", 14 * scale)
         end
     end,
     draw = function(txtTab)

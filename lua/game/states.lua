@@ -4,6 +4,7 @@ local tClear = require "table.clear"
 local effect = require "lua.game.effect"
 local game = require "lua.default.game"
 local gTable = require "lua.tables"
+local initvars = require "lua.game.initvars"
 
 local states = {}
 local bagDef = { 1, 5, 4, 6, 3, 7, 2 }
@@ -26,7 +27,7 @@ local function concatTab(t1, t2)
     return t1
 end
 
-function tabContains(tab, value)
+local function tabContains(tab, value)
     for _, tab in ipairs(tab) do
         if tab == value then
             return true
@@ -36,26 +37,41 @@ function tabContains(tab, value)
 end
 
 -- line clear ui effect
-local function newLClrUI(sts, str, cBlk, aSpd)
+local function newLClrUI(lClrTab, str, cBlk, aSpd, aT, yOffSpd)
     -- "cBlk" can be color block, or current block, or a string for color
-    table.insert(sts.lClearUI, { str = str, cBlk = cBlk, a = 1, aSpd = aSpd, s = 1, yOff = 0 })
+    if yOffSpd ~= nil then
+        table.insert(lClrTab, { str = str, cBlk = cBlk, a = 1, aSpd = aSpd, s = 1, aT = aT, yOff = 0, yOffSpd = yOffSpd })
+    else
+        table.insert(lClrTab, { str = str, cBlk = cBlk, a = 1, aSpd = aSpd, s = 1, aT = aT, yOff = 0 })
+    end
 end
 
-function states.lowestCells(plyVar, mtrxTab, blkTab, gBoard, isInverse)
-    if not isInverse then
-        local tX, tY = plyVar.x, plyVar.y
-        while states.bMove(plyVar, blkTab, gBoard, tX, tY + 1, plyVar.bRot, mtrxTab) do
-            tY = tY + 1
+-- checks for filled rows
+local function solidRows(mtrxTab, xInit, xEnd, y, steps)
+    for x = xInit, xEnd do
+        if mtrxTab[y][x] == 0 and x % steps == 0 then
+            return false
         end
-        return tY
-    else
-        for i = plyVar.y, 1, -1 do
-            if states.bMove(plyVar, blkTab, gBoard, plyVar.x, plyVar.y, plyVar.bRot, mtrxTab) then
-                return i + 1
-            end
-        end
-        return 1
     end
+    return true
+end
+
+-- flip piece update function
+function states.flipStateUpd(plyVar)
+    if plyVar.bRot == 1 or plyVar.bRot == 4 then
+        plyVar.flipD = 1
+    end
+    if plyVar.bRot == 2 or plyVar.bRot == 3 then
+        plyVar.flipD = 2
+    end
+end
+
+function states.lowestCells(plyVar, mtrxTab, blkTab, gBoard)
+    local tX, tY = plyVar.x, plyVar.y
+    while states.bMove(plyVar, blkTab, gBoard, tX, tY + 1, plyVar.bRot, mtrxTab) do
+        tY = tY + 1
+    end
+    return tY
 end
 
 -- line clear function
@@ -179,7 +195,7 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
             end
         end
     else
-        newLClrUI(sts, "?", plyVar.currBlk, 0.5)
+        newLClrUI(sts.lClearUI "?", plyVar.currBlk, 0.5, 0.65)
         print("!!! this should NOT happen ingame (blocks wont place normally) currBlk: " ..
             plyVar.currBlk .. " bRot: " .. plyVar.bRot .. " x: " .. plyVar.x .. " y: " .. plyVar.y .. " !!!")
     end
@@ -216,6 +232,7 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
 
         -- clear line clear ui on new line clear
         tClear(sts.lClearUI)
+        tClear(sts.lClearAftrImg)
         if #sts.lkEfct > 0 then
             tClear(sts.lkEfct)
         end
@@ -229,13 +246,13 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
         if settings.lineEffect then
             effect.newLineEffect(nil, brdTab, sts.lEffect, true, false)
         end
-        newLClrUI(sts, "C", "C", 0.5)
+        newLClrUI(sts.lClearAftrImg, sts.lineClr, "W", 5, 10)
+        newLClrUI(sts.lClearUI, "C", "C", 0.5, 0.65, -28)
     end
-
 
     --if isSpin(plyVar.x, plyVar.y, gMtrx) and not cAnim and plyVar.isAlrRot then
     --   tClear(sts.lClearUI)
-    --    newLClrUI(sts, "T", "T", 0.5)
+    --    newLClrUI(sts, "T", "T", 0.5, 0.65)
     --   sts.scr = sts.scr + 500
     --    sts.clr.spinT = sts.clr.spinT + 1
     --end
@@ -244,12 +261,9 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
     if cAnim then
         print("lines: " .. sts.lineClr)
         sts.comb = sts.comb + 1
-        sts.scr = sts.scr + (sts.lv * ((200 + (200 * sts.lineClr)) + (50 * sts.comb)))
-        print(sts.scr + (sts.lv * ((200 + (200 * sts.lineClr)) + (200 * sts.comb))) ..
-            " (+" .. (sts.lv * ((200 + (200 * sts.lineClr)) + (200 * sts.comb))) .. ")" ..
-            " prev. curr score: " .. sts.scr .. " clear: " .. tostring(clear))
 
-        newLClrUI(sts, sts.lineClr, plyVar.currBlk, 0.5)
+        newLClrUI(sts.lClearAftrImg, sts.lineClr, plyVar.currBlk, 5, 10)
+        newLClrUI(sts.lClearUI, sts.lineClr, plyVar.currBlk, 0.5, 0.65, -28)
 
         if sts.lineClr == 1 then
             sts.clr.sgl = sts.clr.sgl + 1
@@ -265,9 +279,27 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
             sts.strk = sts.strk + 1
         end
 
+        local strkRwd = 0
+        local comboRwd = 0
+        if sts.strk > 1 then
+            strkRwd = (4000 * (sts.strk))
+            print("----- strk: x" .. sts.strk - 1 .. " -----")
+        else
+            strkRwd = 0
+        end
+
+        if sts.comb > 1 then
+            comboRwd = (50 * sts.comb)
+            print("----- combo: x" .. sts.comb - 1 .. " -----")
+        else
+            comboRwd = 0
+        end
+
+        sts.scr = sts.scr + (((200 + (200 * sts.lineClr)) + comboRwd + strkRwd) * sts.lv)
+
         -- if isSpin(plyVar.x, plyVar.y, gMtrx) and plyVar.isAlrRot then
         --     tClear(sts.lClearUI)
-        --     newLClrUI(sts, "T", "T", 0.5)
+        --     newLClrUI(sts.lClearUI, "T", "T", 0.5, 0.65)
         --     sts.scr = sts.scr + (2000 * sts.lineClr)
         --     sts.clr.spinT = sts.clr.spinT + 1
         -- end
@@ -382,6 +414,30 @@ function states.nextQueue(plyVar, settings)
     end
 end
 
+-- hold function
+function states.holdFunc(plyVar, settings)
+    if plyVar.hold == 0 then
+        plyVar.hold = plyVar.currBlk
+        states.nextQueue(plyVar, settings)
+    else
+        -- replace block in hold with current block
+        plyVar.currBlk = plyVar.hold
+        -- replace block in hold with first block in next queue
+        plyVar.hold = plyVar.next[1]
+    end
+
+    -- reset player position & values
+    initvars.plyInit(plyVar)
+
+    plyVar.isAlreadyHold = true
+end
+
+function states.addMoves(plyVar, game)
+    if game.useMoveReset then
+        plyVar.moveR = plyVar.moveR + 1
+    end
+end
+
 -- game fail detection
 function states.isGFail(plyVar, blkTab, brdTab, mtrxTab)
     if not states.bMove(plyVar, blkTab, brdTab, plyVar.x, plyVar.y, plyVar.bRot, mtrxTab) then
@@ -390,6 +446,7 @@ function states.isGFail(plyVar, blkTab, brdTab, mtrxTab)
 end
 
 -- spin detection
+--TODO: Finish spin detection
 function states.isSpin(xOff, yOff, mtrxTab, t)
 
 end
@@ -403,6 +460,65 @@ function states.isAllClr(mtrxTab, brdTab)
         end
     end
     return true
+end
+
+-- so strict
+function states.sgCheck(mtrxTab, brdTab, sts)
+    -- 10x20 cells
+    if brdTab.visW == 10 and brdTab.visH >= 20 then
+        -- cell x pos.
+        for xCl = 1, 20 do
+            if xCl == 1 then
+                if solidRows(mtrxTab, xCl + 1, brdTab.visW, brdTab.visH, 1)
+                    and (mtrxTab[brdTab.visH][xCl] == 0 and mtrxTab[brdTab.visH - xCl][xCl] ~= 0) then
+                    sts.scrtG = xCl
+                    -- first table value is bottom row
+                    sts.sGFill[xCl] = true
+                else
+                    sts.sGFill[xCl] = false
+                end
+            elseif xCl > 1 and xCl <= 10 then
+                -- 2nd to 10th row
+                -- previous rows filled check
+                if sts.sGFill[xCl - 1] then
+                    if solidRows(mtrxTab, xCl + 1, brdTab.visW, brdTab.visH - (xCl - 1), 1)
+                        and (solidRows(mtrxTab, 1, xCl - 1, brdTab.visH - (xCl - 1), 1)
+                            and mtrxTab[brdTab.visH - (xCl - 1)][xCl] == 0
+                            and mtrxTab[brdTab.visH - xCl][xCl] ~= 0) then
+                        sts.scrtG = xCl
+                        sts.sGFill[xCl] = true
+                    end
+                else
+                    -- reset values to false
+                    sts.sGFill[xCl] = false
+                end
+            elseif xCl > 10 and xCl <= 19 then
+                -- 11th to 19th row
+                if sts.sGFill[xCl - 1] then
+                    if solidRows(mtrxTab, brdTab.visW - (xCl - 11), brdTab.visW, brdTab.visH - (xCl - 1), 1)
+                        and (solidRows(mtrxTab, 1, brdTab.visW - (xCl - 9), brdTab.visH - (xCl - 1), 1)
+                            and mtrxTab[brdTab.visH - (xCl - 1)][brdTab.visW - (xCl - 10)] == 0
+                            and mtrxTab[brdTab.visH - xCl][brdTab.visW - (xCl - 10)] ~= 0) then
+                        sts.scrtG = xCl
+                        sts.sGFill[xCl] = true
+                    end
+                else
+                    -- reset values to false
+                    sts.sGFill[xCl] = false
+                end
+            elseif xCl == 20 then
+                if solidRows(mtrxTab, 3, brdTab.visW, brdTab.visH - (xCl - 1), 1)
+                    and (mtrxTab[brdTab.visH - (xCl - 1)][1] ~= 0
+                    and mtrxTab[brdTab.visH - (xCl - 1)][2] == 0) then
+                    sts.scrtG = xCl
+                    -- highest row
+                    sts.sGFill[xCl] = true
+                else
+                    sts.sGFill[xCl] = false
+                end
+            end
+        end
+    end
 end
 
 -- danger zone (near failure) check

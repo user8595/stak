@@ -9,6 +9,7 @@ local game = {
     useMoveReset = true,
     showFailColors = false,
     isGravityInc = true,
+    hideStats = true,
 
     -- for 40 lines (txt for now)
     --TODO: Implement game end lines indicator

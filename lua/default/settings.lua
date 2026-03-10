@@ -1,7 +1,6 @@
 local settings = {
     showGrid = true,
-    --TODO: Improve outline style (increase height when persp. effect is on?)
-    showOutlines = false,
+    showOutlines = true,
     showGhost = true,
     hDropEffect = true,
     coloredHDropEffect = true,
@@ -9,11 +8,14 @@ local settings = {
     lineEffect = true,
     lockEffect = true,
     showDanger = true,
+    showHoldDgr = true,
     showKOverlay = true,
     -- small timer text
     altTimerUI = true,
     qRestartTime = 0.75,
     scale = 1,
+    --TODO: Implement game UI scale
+    uiScale = 1,
     rotSys = "SRS",     -- "ARS", "SRS"
     bagType = "modern", -- "modern", "classicM", "classicRand"
 

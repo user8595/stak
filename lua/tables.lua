@@ -1,3 +1,5 @@
+local lerp = require "lua.lerp"
+
 -- table values
 local tables = {
     grav = {
@@ -8,7 +10,7 @@ local tables = {
         0.25, 0.18, 0.10, 0.05, 0.03,
 
         -- level 11 to 13
-        0.025, 0.015, 0.001
+        0.020, 0.010, 0.001
 
         -- level 13+ == 0s
     },
@@ -20,13 +22,12 @@ local tables = {
         0, 1, 2,
 
         -- level 15 to 20+
-        4, 7, 8, 12, 30
+        4, 6, 8, 12, 30
     },
-    --TODO: Implement secret grade values
     sGrade = {
         9, 8, 7, 6, 5, 4, 3, 2, 1,
         "S1", "S2", "S3", "S4", "S5",
-        "S6", "S7", "S8", "S9", "GM"
+        "S6", "S7", "S8", "S9", "Gm", "Gm+"
     },
     blocks =
     {
@@ -239,6 +240,7 @@ local tables = {
             { { 0, 0 } },
             { { 0, 0 } }
         }
+        --TODO: Implement flip/180 kicks
     },
 
     colTab = {
@@ -305,7 +307,8 @@ local tables = {
                     gColD.yellow,
                     gColD.lBlue,
                     C = cFAC.col[cFAC.index],
-                    T = cFSpn.col[cFSpn.index]
+                    T = cFSpn.col[cFSpn.index],
+                    W = { 1, 1, 1 }
                 }
             end,
             classicD = function(gCol, cFAC, cFSpn)
@@ -332,7 +335,8 @@ local tables = {
                     gColD.yellow,
                     gColD.purple,
                     C = cFAC.col[cFAC.index],
-                    T = cFSpn.col[cFSpn.index]
+                    T = cFSpn.col[cFSpn.index],
+                    W = { 1, 1, 1 }
                 }
             end,
             modernD = function(gCol, cFAC, cFSpn)

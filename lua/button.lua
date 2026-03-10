@@ -1,5 +1,6 @@
 local lg, lm = love.graphics, love.mouse
 local mX, mY = lm.getPosition()
+local ipairs = ipairs
 
 local button = {
     new = function(str, font, x, y, w, h, func, col, colActive, colTxt, colTxtActive, isCenter)
