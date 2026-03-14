@@ -574,11 +574,11 @@ function gfx.dPStats(xOff, yOff, wWd, wHg, stats, records, fonts, isRecords)
             wHg - 30 + yOff, wWd, "center")
     else
         lg.printf(
-            { gCol.yellow, "best spr.: ", { 1, 1, 1, 1 }, initvars.dTime(records.bestSpr.time) .. ", ",
+            { gCol.yellow, "best spr.: ", gCol.white, initvars.dTime(records.bestSpr.time) .. ", ",
                 string.format("%.2f", records.bestSpr.maxpps) .. " p/s, " .. records.bestSpr.finesse .. "F" },
             fonts.othr, 0 + xOff, (wHg - yBestOff) + yOff, wWd, "center")
 
-        lg.printf({ gCol.purple, " best scr.: ", { 1, 1, 1, 1 },
+        lg.printf({ gCol.purple, " best scr.: ", gCol.white,
                 records
                 .bestScore.scr ..
                 ", lv. " .. records.bestScore.lv .. ", "

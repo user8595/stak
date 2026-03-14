@@ -49,7 +49,7 @@ local ply = {
     moveR = 0,
     mRLimit = 15,
     moveRBlk = 0,
-    mRBLimit = 80,
+    mRBLimit = 40,
 
     isIRS = false,
 

@@ -884,7 +884,8 @@ function love.update(dt)
 
             -- gravity function
             if ply.gTimer < ply.grav and
-                states.bMove(ply, blocks, gBoard, ply.x, ply.y + (1 + gTable.gravMult[ply.gMult]), ply.bRot, gMtrx) then
+                states.bMove(ply, blocks, gBoard, ply.x, ply.y + (1 + gTable.gravMult[ply.gMult]), ply.bRot, gMtrx)
+                and not game.isInstantGrav then
                 if not ply.isHDrop then
                     ply.gTimer = ply.gTimer + dt
                     ply.lDTimer = 0
@@ -895,7 +896,11 @@ function love.update(dt)
                     ply.gTimer = 0
                 end
                 if states.bMove(ply, blocks, gBoard, ply.x, ply.y + (1 + gTable.gravMult[ply.gMult]), ply.bRot, gMtrx) then
-                    ply.y = ply.y + (1 + gTable.gravMult[ply.gMult])
+                    if not game.isInstantGrav then
+                        ply.y = ply.y + (1 + gTable.gravMult[ply.gMult])
+                    else
+                        ply.y = states.lowestCells(ply, gMtrx, blocks, gBoard)
+                    end
                     ply.lDTimer = 0
                 else
                     ply.y = states.lowestCells(ply, gMtrx, blocks, gBoard)

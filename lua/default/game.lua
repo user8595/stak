@@ -10,6 +10,8 @@ local game = {
     useMoveReset = true,
     showFailColors = false,
     isGravityInc = true,
+    isInstantGrav = false,
+
     statsIndex = 0, -- 0, 1, 2
 
     -- for 40 lines (txt for now)
