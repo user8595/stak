@@ -30,12 +30,11 @@ wip puzzle game
 - <code>E</code>/<code>R</code>: Clear board & reset player position
 - <code>-</code>/<code>+</code>: Reduce/increase board size
 - <code>0</code>: Reset board size
-- <code>I</code> (gameplay): Enable/disable hold queue
 - <code>F4</code>: Hide debug text
 
 ## requirements
 
-- [LOVE 11.5+](https://love2d.org) (might not work on versions <= 11.4)
+- [LOVE 11.5](https://love2d.org) (might not work on versions < 11.4)
 
 ## credits
 

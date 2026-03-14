@@ -673,13 +673,19 @@ function love.update(dt)
             "40 lines clear! (" ..
             stats.timeDisp .. ", " .. string.format("%.2f", stats.stacks / stats.time) .. " pps)", 0, wHg - 30, true,
             gCol.yellow, 1, 4)
-        if stats.time < records.bestSpr.time then
+        if records.bestSpr.time <= 0 then
             records.bestSpr.time = stats.time
             records.bestSpr.maxpps = stats.maxPPS
             records.bestSpr.finesse = stats.finesse
-            tInfo.new(textInfo, "sprint pb!", 0, wHg - 30, true, gCol.green, 1, 4)
+            game.isHScore = true
+            tInfo.new(textInfo, "first sprint pb!", 0, wHg - 30, true, gCol.green, 1, 4)
+        elseif stats.time < records.bestSpr.time then
+            records.bestSpr.time = stats.time
+            records.bestSpr.maxpps = stats.maxPPS
+            records.bestSpr.finesse = stats.finesse
+            game.isHScore = true
+            tInfo.new(textInfo, "new sprint pb!", 0, wHg - 30, true, gCol.green, 1, 4)
         end
-        game.isHScore = true
         game.is40LClr = true
     end
 
@@ -708,7 +714,7 @@ function love.update(dt)
         end
 
         -- best score
-        if stats.scr > records.bestScore.scr and not game.isHScore then
+        if stats.scr > records.bestScore.scr then
             records.bestScore.scr = stats.scr
             records.bestScore.line = stats.line
             records.bestScore.lv = stats.lv

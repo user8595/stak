@@ -558,36 +558,20 @@ end
 function gfx.dPStats(xOff, yOff, wWd, wHg, stats, records, fonts, isRecords)
     local yBestOff = 45
     if not isRecords then
-        if game.isFail then
-            lg.printf(
-                { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
-                    .yellow,
-                    " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white,
-                    "   |  ", gCol.orange, " all clear: ", gCol.white, stats.clr.ac, gCol.purple, " t-spin: ", gCol
-                    .white,
-                    stats
-                    .spinT .. ", " .. stats.clr.spinTS .. ", " .. stats.clr.spinTD .. ", " .. stats.clr.spinTT, gCol.red,
-                    " comb. ",
-                    gCol.orange,
-                    "&", gCol.purple, " strk: ", gCol.white, "x" ..
-                stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "p/s.: ", gCol.white,
-                    string.format("%.2f", stats.maxPPS) .. " p/s, " .. stats.finesse .. "F" }, fonts.othr, 0 + xOff,
-                wHg - 30 + yOff, wWd, "center")
-        else
-            lg.printf(
-                { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
-                    .yellow,
-                    " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white,
-                    "   |  ", gCol.orange, " all clear: ", gCol.white, stats.clr.ac, gCol.purple, " t-spin: ", gCol
-                    .white,
-                    stats
-                    .spinT .. ", " .. stats.clr.spinTS .. ", " .. stats.clr.spinTD .. ", " .. stats.clr.spinTT, gCol.red,
-                    " comb. ",
-                    gCol.orange,
-                    "&", gCol.purple, " strk: ", gCol.white, "x" ..
-                stats.maxComb .. ", x" .. stats.maxStrk .. " | " .. string.format("%.2f", stats.maxPPS) .. " p/s, " .. stats.finesse .. "F" }, fonts.othr, 0 + xOff,
-                wHg - 30 + yOff, wWd, "center")
-        end
+        lg.printf(
+            { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
+                .yellow,
+                " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white,
+                "   |  ", gCol.orange, " all clear: ", gCol.white, stats.clr.ac, gCol.purple, " t-spin: ", gCol
+                .white,
+                stats
+                .spinT .. ", " .. stats.clr.spinTS .. ", " .. stats.clr.spinTD .. ", " .. stats.clr.spinTT, gCol.red,
+                " comb. ",
+                gCol.orange,
+                "&", gCol.purple, " strk: ", gCol.white, "x" ..
+            stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "p/s.: ", gCol.white,
+                string.format("%.2f", stats.maxPPS) .. " p/s, " .. stats.finesse .. "F" }, fonts.othr, 0 + xOff,
+            wHg - 30 + yOff, wWd, "center")
     else
         lg.printf(
             { gCol.yellow, "best spr.: ", { 1, 1, 1, 1 }, initvars.dTime(records.bestSpr.time) .. ", ",

@@ -3,7 +3,7 @@ local json = require "libs.json"
 
 local function readFile(file, data)
     if type(file) == "string" then
-        if lf.read(file) == "" then
+        if lf.read(file) == "" or lf.read(file) == nil then
             lf.write(file, json.encode(data))
         end
         return json.decode(lf.read(file))
