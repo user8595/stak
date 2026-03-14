@@ -33,6 +33,10 @@ wip puzzle game
 - <code>I</code> (gameplay): Enable/disable hold queue
 - <code>F4</code>: Hide debug text
 
+## requirements
+
+- [LOVE 11.5+](love2d.org) (might not work on versions <= 11.4)
+
 ## credits
 
 - [Catppuccin](https://github.com/catppuccin/catppuccin) for game's main colorscheme

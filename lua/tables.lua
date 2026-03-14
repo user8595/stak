@@ -1,5 +1,3 @@
-local lerp = require "lua.lerp"
-
 -- table values
 local tables = {
     grav = {
@@ -239,6 +237,10 @@ local tables = {
             { { 0, 0 } },
             { { 0, 0 } },
             { { 0, 0 } }
+        },
+        {
+            {},
+            {}
         }
         --TODO: Implement flip/180 kicks
     },

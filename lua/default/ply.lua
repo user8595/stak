@@ -8,6 +8,7 @@ local ply = {
     currBlk = 1,
     bRot = 1,
     d = 1, -- 1: ccw, 2: cw
+    spinReward = 1, -- 0: no spin, 1: mini spins, 2: normal spins
     flipD = 1, -- 1: ccw (1, 4), 2: cw (2, 3)
     next = {},
     nHist = {},
@@ -24,7 +25,7 @@ local ply = {
     arr = 1 / 1000,
     arrTimer = 0,
     -- soft drop speed
-    sdr = 0.1 / 1000,
+    sdr = 5 / 1000,
     sdrTimer = 0,
 
     -- lock delay
@@ -45,8 +46,10 @@ local ply = {
     grav = gTable.grav[1],
     gMult = 1,
 
-    moveR = 0, -- max. 15 steps
+    moveR = 0,
     mRLimit = 15,
+    moveRBlk = 0,
+    mRBLimit = 80,
 
     isIRS = false,
 

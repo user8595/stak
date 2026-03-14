@@ -1,10 +1,12 @@
-local gCol = require "lua.gCol"
-local lerp = require "lua.lerp"
-local gTable = require "lua.tables"
+local gCol     = require "lua.gCol"
+local lerp     = require "lua.lerp"
+local gTable   = require "lua.tables"
 local settings = require "lua.default.settings"
-local ipairs = ipairs
-local lg = love.graphics
-local gfx = {}
+local initvars = require "lua.game.initvars"
+local game     = require "lua.default.game"
+local ipairs   = ipairs
+local lg       = love.graphics
+local gfx      = {}
 
 function gfx.dBlocks(bl, x, y, plyVar, brdVar, settings, game, isGhost, isOutline, noColors, lDlyFade, isHDrop, hdAlp,
                      hdHgt, img)
@@ -68,8 +70,6 @@ function gfx.dBlocks(bl, x, y, plyVar, brdVar, settings, game, isGhost, isOutlin
                 end
             end
         end
-    else
-        lg.setColor(1, 1, 1, 0)
     end
 
     if img == nil then
@@ -109,7 +109,7 @@ end
 
 function gfx.dGrid(mtrxTab, gBoard)
     for y, _ in ipairs(mtrxTab) do
-        for x, blk in ipairs(mtrxTab[y]) do
+        for x, _ in ipairs(mtrxTab[y]) do
             if y ~= 1 then
                 lg.setColor(.80 * .3, .84 * .3, .96 * .3)
                 lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1),
@@ -134,53 +134,51 @@ function gfx.dOutline(mtrxTab, game, gBoard, strokeWd)
     end
     for y, _ in ipairs(mtrxTab) do
         for x, br in ipairs(mtrxTab[y]) do
-            if y ~= 1 then
-                if br ~= 0 then
-                    local yOff = 0
-                    if settings.perspBlocks then
-                        yOff = strokeWd + 0.5
-                    end
-                    -- there must be a better way than this right
-                    -- ##### bottom edge rows
-                    if x == 1 and y == #mtrxTab then
-                        lg.setColor(sCol())
-                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1),
-                            (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                            (gBoard.w + strokeWd),
-                            (gBoard.h + strokeWd) + yOff)
-                    elseif x == #mtrxTab[y] and y == #mtrxTab then
-                        lg.setColor(sCol())
-                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
-                            (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                            gBoard.w + strokeWd,
-                            (gBoard.h + strokeWd) + yOff)
-                        -- ##### left & right columns
-                    elseif x == 1 then
-                        lg.setColor(sCol())
-                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1),
-                            (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                            gBoard.w + strokeWd,
-                            (gBoard.h + (strokeWd * 2) + yOff))
-                    elseif x == #mtrxTab[y] then
-                        lg.setColor(sCol())
-                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
-                            (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                            gBoard.w + strokeWd,
-                            (gBoard.h + (strokeWd * 2)) + yOff)
-                        -- bottom row (general)
-                    elseif y == #mtrxTab then
-                        lg.setColor(sCol())
-                        lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
-                            (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                            gBoard.w + (strokeWd * 2),
-                            (gBoard.h + (strokeWd)) + yOff)
-                    else
-                        lg.setColor(sCol())
-                        lg.rectangle("fill", (gBoard.x + gBoard.w * (x - 1) - strokeWd),
-                            (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                            (gBoard.w + (strokeWd * 2)),
-                            (gBoard.h + (strokeWd * 2)) + yOff)
-                    end
+            if br ~= 0 then
+                local yOff = 0
+                if settings.perspBlocks then
+                    yOff = strokeWd + 0.5
+                end
+                -- there must be a better way than this right
+                -- ##### bottom edge rows
+                if x == 1 and y == #mtrxTab then
+                    lg.setColor(sCol())
+                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1),
+                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
+                        (gBoard.w + strokeWd),
+                        (gBoard.h + strokeWd) + yOff)
+                elseif x == #mtrxTab[y] and y == #mtrxTab then
+                    lg.setColor(sCol())
+                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
+                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
+                        gBoard.w + strokeWd,
+                        (gBoard.h + strokeWd) + yOff)
+                    -- ##### left & right columns
+                elseif x == 1 then
+                    lg.setColor(sCol())
+                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1),
+                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
+                        gBoard.w + strokeWd,
+                        (gBoard.h + (strokeWd * 2) + yOff))
+                elseif x == #mtrxTab[y] then
+                    lg.setColor(sCol())
+                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
+                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
+                        gBoard.w + strokeWd,
+                        (gBoard.h + (strokeWd * 2)) + yOff)
+                    -- bottom row (general)
+                elseif y == #mtrxTab then
+                    lg.setColor(sCol())
+                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
+                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
+                        gBoard.w + (strokeWd * 2),
+                        (gBoard.h + (strokeWd)) + yOff)
+                else
+                    lg.setColor(sCol())
+                    lg.rectangle("fill", (gBoard.x + gBoard.w * (x - 1) - strokeWd),
+                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
+                        (gBoard.w + (strokeWd * 2)),
+                        (gBoard.h + (strokeWd * 2)) + yOff)
                 end
             end
         end
@@ -517,7 +515,7 @@ function gfx.lClearUpd(lClearTab, dt)
 end
 
 -- secret grade indicator
-function gfx.dScrtG(x, y, stats, fonts, gBoard, txt, backdrop, gColD)
+function gfx.dScrtG(x, y, stats, fonts, gBoard, txt, backdrop)
     lg.push()
     lg.translate(x, y)
     if txt then
@@ -532,17 +530,9 @@ function gfx.dScrtG(x, y, stats, fonts, gBoard, txt, backdrop, gColD)
     if not txt then
         lg.push()
         if not backdrop then
-            if stats.scrtG < 10 then
-                lg.setColor(gCol.gray[1] + .525, gCol.gray[2] + .525, gCol.gray[3] + .525)
-            else
-                lg.setColor(gCol.yellow)
-            end
+            lg.setColor(gCol.gray[1] + .525, gCol.gray[2] + .525, gCol.gray[3] + .525)
         else
-            if stats.scrtG < 10 then
-                lg.setColor(gCol.gray[1] - .1, gCol.gray[2] - .1, gCol.gray[3] - .1)
-            else
-                lg.setColor(gColD.yellow[1] - .1, gColD.yellow[2] - .1, gColD.yellow[3] - .1)
-            end
+            lg.setColor(gCol.gray[1] - .1, gCol.gray[2] - .1, gCol.gray[3] - .1)
         end
 
         if string.len(tostring(gTable.sGrade[stats.scrtG])) > 1 then
@@ -565,17 +555,56 @@ function gfx.dScrtG(x, y, stats, fonts, gBoard, txt, backdrop, gColD)
 end
 
 -- pause stats
-function gfx.dPStats(xOff, yOff, wWd, wHg, stats, fonts)
-    lg.printf(
-        { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
-            .yellow,
-            " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white, "   |  ",
-            gCol
-                .orange, " all clears: ", gCol.white, stats.clr.ac, gCol.purple, " t-spins: ", gCol.white, stats.clr
-        .spinTS .. ", " .. stats.clr.spinTD .. ", " .. stats.clr.spinTT, gCol.red, " max comb. ", gCol.orange, "&", gCol
-            .purple, " strk: ", gCol.white, "x" ..
-        stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "max spd.: ", gCol.white,
-            string.format("%.2f", stats.maxPPS) .. " p/s" }, fonts.othr, 0 + xOff, wHg - 30 + yOff, wWd, "center")
+function gfx.dPStats(xOff, yOff, wWd, wHg, stats, records, fonts, isRecords)
+    local yBestOff = 45
+    if not isRecords then
+        if game.isFail then
+            lg.printf(
+                { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
+                    .yellow,
+                    " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white,
+                    "   |  ", gCol.orange, " all clear: ", gCol.white, stats.clr.ac, gCol.purple, " t-spin: ", gCol
+                    .white,
+                    stats
+                    .spinT .. ", " .. stats.clr.spinTS .. ", " .. stats.clr.spinTD .. ", " .. stats.clr.spinTT, gCol.red,
+                    " comb. ",
+                    gCol.orange,
+                    "&", gCol.purple, " strk: ", gCol.white, "x" ..
+                stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "p/s.: ", gCol.white,
+                    string.format("%.2f", stats.maxPPS) .. " p/s, " .. stats.finesse .. "F" }, fonts.othr, 0 + xOff,
+                wHg - 30 + yOff, wWd, "center")
+        else
+            lg.printf(
+                { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
+                    .yellow,
+                    " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white,
+                    "   |  ", gCol.orange, " all clear: ", gCol.white, stats.clr.ac, gCol.purple, " t-spin: ", gCol
+                    .white,
+                    stats
+                    .spinT .. ", " .. stats.clr.spinTS .. ", " .. stats.clr.spinTD .. ", " .. stats.clr.spinTT, gCol.red,
+                    " comb. ",
+                    gCol.orange,
+                    "&", gCol.purple, " strk: ", gCol.white, "x" ..
+                stats.maxComb .. ", x" .. stats.maxStrk }, fonts.othr, 0 + xOff,
+                wHg - 30 + yOff, wWd, "center")
+        end
+    else
+        lg.printf(
+            { gCol.yellow, "best spr.: ", { 1, 1, 1, 1 }, initvars.dTime(records.bestSpr.time) .. ", ",
+                string.format("%.2f", records.bestSpr.maxpps) .. " p/s, " .. records.bestSpr.finesse .. "F" },
+            fonts.othr, 0 + xOff, (wHg - yBestOff) + yOff, wWd, "center")
+
+        lg.printf({ gCol.purple, " best scr.: ", { 1, 1, 1, 1 },
+                records
+                .bestScore.scr ..
+                ", lv. " .. records.bestScore.lv .. ", "
+                .. records.bestScore.line .. " ln., " .. initvars.dTime(records.bestScore.time) .. ", "
+                .. string.format("%.2f", records.bestScore.maxpps) .. " p/s, " .. records.bestScore.finesse .. "F" },
+            fonts.othr, 0 + xOff,
+            (wHg - yBestOff + 15) + yOff,
+            wWd,
+            "center")
+    end
 end
 
 return gfx

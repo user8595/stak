@@ -1,5 +1,3 @@
-local gTable = require "lua.tables"
-
 local stats = {
     scr = 0,
     lv = 1,
@@ -8,6 +6,7 @@ local stats = {
     comb = 0,
     maxComb = 0,
 
+    spinT = 0,
     clr = {
         sgl = 0,
         dbl = 0,
@@ -29,6 +28,8 @@ local stats = {
     timeDisp = "00:00.00",
     -- used for pps counter
     stacks = 0,
+    finesse = 0,
+    finK = 0, -- reset to 0 if > 2
     currPPS = 0,
     maxPPS = 0,
     -- for pause delay

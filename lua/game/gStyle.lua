@@ -55,7 +55,7 @@ function gStyle.failCol(game, stats, gCol, isPPS, isCol)
                 lg.setColor(gCol.yellow)
             end
             if stats.currPPS > 2.65 and stats.currPPS < 3 then
-                lg.setColor(gCol.lBlue[1] + .1, gCol.lBlue[2] + .2, 1)
+                lg.setColor(gCol.lBlue[1] - 0.1, gCol.lBlue[2], 1)
             end
             if stats.currPPS > 3 and stats.currPPS < 4 then
                 lg.setColor(gCol.red[1] + .3, gCol.red[2], gCol.red[3])

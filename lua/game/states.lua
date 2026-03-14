@@ -1,6 +1,6 @@
 local lmth = love.math
 
-local tClear = require "table.clear"
+local tClear = require "lua.tClear"
 local effect = require "lua.game.effect"
 local game = require "lua.default.game"
 local gTable = require "lua.tables"
@@ -175,7 +175,7 @@ function states.bRotate(plyVar, settings, tX, tY, d, bRot, bRotPrev, blkTab, brd
                 end
             end
         end
-        return false, tX, tY
+        return false, tX, tY, 0
     end
 end
 
@@ -183,6 +183,7 @@ end
 function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
     local clear = true
     local cAnim = false
+    local isStack = false
 
     if bL[plyVar.currBlk][plyVar.bRot] ~= nil then
         for y, _ in ipairs(bL[plyVar.currBlk][plyVar.bRot]) do
@@ -190,6 +191,7 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
                 if blk ~= 0 then
                     if bY + y <= #mtrxTab then
                         mtrxTab[bY + y][bX + x] = blk
+                        isStack = true
                     end
                 end
             end
@@ -198,6 +200,11 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
         newLClrUI(sts.lClearUI "?", plyVar.currBlk, 0.5, 0.65)
         print("!!! this should NOT happen ingame (blocks wont place normally) currBlk: " ..
             plyVar.currBlk .. " bRot: " .. plyVar.bRot .. " x: " .. plyVar.x .. " y: " .. plyVar.y .. " !!!")
+    end
+
+    if isStack then
+        sts.stacks = sts.stacks + 1
+        isStack = false
     end
 
     -- for line clear function
@@ -250,18 +257,34 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
         newLClrUI(sts.lClearUI, "C", "C", 0.5, 0.65, -28)
     end
 
-    --if isSpin(plyVar.x, plyVar.y, gMtrx) and not cAnim and plyVar.isAlrRot then
-    --   tClear(sts.lClearUI)
-    --    newLClrUI(sts, "T", "T", 0.5, 0.65)
-    --   sts.scr = sts.scr + 500
-    --    sts.clr.spinT = sts.clr.spinT + 1
-    --end
+    -- "an unhinged score formula"
+    -- line clear spin
+    if plyVar.spinReward > 0 and plyVar.isAlrRot then
+        if not cAnim then
+            tClear(sts.lClearUI)
+            newLClrUI(sts.lClearAftrImg, sts.lineClr, plyVar.currBlk, 5, 10)
+            newLClrUI(sts.lClearUI, "T", "T", 0.5, 0.65, -28)
+        end
+
+        -- base scores, added with line clear formula
+        -- normal spin
+        if plyVar.spinReward == 1 then
+            sts.scr = sts.scr + (100 * sts.lv)
+        elseif plyVar.spinReward == 2 then
+            -- mini spin
+            sts.scr = sts.scr + (400 * sts.lv)
+        end
+
+        sts.spinT = sts.spinT + 1
+        print("-------= spinReward: " .. plyVar.spinReward .. " (no line clr.) =-------")
+    end
 
     -- events after line clears
     if cAnim then
         print("lines: " .. sts.lineClr)
         sts.comb = sts.comb + 1
 
+        -- line clear ui popup
         newLClrUI(sts.lClearAftrImg, sts.lineClr, plyVar.currBlk, 5, 10)
         newLClrUI(sts.lClearUI, sts.lineClr, plyVar.currBlk, 0.5, 0.65, -28)
 
@@ -297,12 +320,22 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
 
         sts.scr = sts.scr + (((200 + (200 * sts.lineClr)) + comboRwd + strkRwd) * sts.lv)
 
-        -- if isSpin(plyVar.x, plyVar.y, gMtrx) and plyVar.isAlrRot then
-        --     tClear(sts.lClearUI)
-        --     newLClrUI(sts.lClearUI, "T", "T", 0.5, 0.65)
-        --     sts.scr = sts.scr + (2000 * sts.lineClr)
-        --     sts.clr.spinT = sts.clr.spinT + 1
-        -- end
+        -- line clear spin
+        if plyVar.spinReward > 0 and plyVar.isAlrRot then
+            newLClrUI(sts.lClearAftrImg, sts.lineClr, plyVar.currBlk, 5, 10)
+            newLClrUI(sts.lClearUI, "T", "T", 0.5, 0.65, -28)
+            sts.scr = sts.scr + (((400 * sts.lineClr) * sts.lv) * (sts.strk + 1))
+            if sts.lineClr == 1 then
+                sts.clr.spinTS = sts.clr.spinTS + 1
+            elseif sts.lineClr == 2 then
+                sts.clr.spinTD = sts.clr.spinTD + 1
+            elseif sts.lineClr == 3 then
+                sts.clr.spinTT = sts.clr.spinTT + 1
+            end
+            print("-------= spinReward: " ..
+                plyVar.spinReward ..
+                "scr: " .. (((400 * sts.lineClr) * sts.lv) * (sts.strk + 1)) .. " (line clr.) =-------")
+        end
 
         if sts.line > sts.nxtLines then
             sts.lv = sts.lv + 1
@@ -432,9 +465,16 @@ function states.holdFunc(plyVar, settings)
     plyVar.isAlreadyHold = true
 end
 
-function states.addMoves(plyVar, game)
-    if game.useMoveReset then
-        plyVar.moveR = plyVar.moveR + 1
+-- increment move reset counter
+function states.addMoves(plyVar, game, isBMove)
+    if not isBMove then
+        if game.useMoveReset then
+            plyVar.moveR = plyVar.moveR + 1
+        end
+    else
+        if game.useMoveReset then
+            plyVar.moveRBlk = plyVar.moveRBlk + 1
+        end
     end
 end
 
@@ -447,8 +487,15 @@ end
 
 -- spin detection
 --TODO: Finish spin detection
-function states.isSpin(xOff, yOff, mtrxTab, t)
-
+function states.isSpin(xOff, yOff, ply, settings, mtrxTab, t)
+    local cellOff = {
+        ---@format disable
+        { {0, 0}, {}, {}, {} }, -- 1
+        { {}, {}, {}, {} }, -- 2
+        { {}, {}, {}, {} }, -- 3
+        { {}, {}, {}, {} }, -- 4
+    }
+    return 2
 end
 
 function states.isAllClr(mtrxTab, brdTab)
@@ -509,7 +556,7 @@ function states.sgCheck(mtrxTab, brdTab, sts)
             elseif xCl == 20 then
                 if solidRows(mtrxTab, 3, brdTab.visW, brdTab.visH - (xCl - 1), 1)
                     and (mtrxTab[brdTab.visH - (xCl - 1)][1] ~= 0
-                    and mtrxTab[brdTab.visH - (xCl - 1)][2] == 0) then
+                        and mtrxTab[brdTab.visH - (xCl - 1)][2] == 0) then
                     sts.scrtG = xCl
                     -- highest row
                     sts.sGFill[xCl] = true

@@ -8,6 +8,7 @@ local settings = {
     lineEffect = true,
     lockEffect = true,
     showDanger = true,
+    -- danger block from hold queue
     showHoldDgr = true,
     showKOverlay = true,
     -- small timer text

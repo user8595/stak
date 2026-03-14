@@ -105,9 +105,11 @@ function effect.lkDrw(lockEffectTab, plyVar, brdVar, settings, game)
     for _, lk in ipairs(lockEffectTab) do
         for y, _ in ipairs(lk.blk) do
             for x, blk in ipairs(lk.blk[y]) do
-                lg.setColor(1, 1, 1, lk.a)
-                if not lk.HDrop then
-                    gfx.dBlocks(blk, x + lk.x, y + lk.y, plyVar, brdVar, settings, game, false, false, true)
+                if blk ~= 0 then
+                    lg.setColor(1, 1, 1, lk.a)
+                    if not lk.HDrop then
+                        gfx.dBlocks(blk, x + lk.x, y + lk.y, plyVar, brdVar, settings, game, false, false, true)
+                    end
                 end
             end
         end
@@ -119,13 +121,17 @@ function effect.hDDrw(lockEffectTab, plyVar, brdVar, settings, game)
         for y, _ in ipairs(lk.blk) do
             for x, blk in ipairs(lk.blk[y]) do
                 if lk.HDrop then
-                    if not settings.coloredHDropEffect then
-                        lg.setColor(1, 1, 1, lk.a)
-                        gfx.dBlocks(blk, x + lk.x, lk.y + y, plyVar, brdVar, settings, game, false, false, true, false,
-                            true, nil, lk.h)
-                    else
-                        gfx.dBlocks(blk, x + lk.x, lk.y + y, plyVar, brdVar, settings, game, false, false, false, false,
-                            true, lk.a, lk.h)
+                    if blk ~= 0 then
+                        if not settings.coloredHDropEffect then
+                            lg.setColor(1, 1, 1, lk.a)
+                            gfx.dBlocks(blk, x + lk.x, lk.y + y, plyVar, brdVar, settings, game, false, false, true,
+                                false,
+                                true, nil, lk.h)
+                        else
+                            gfx.dBlocks(blk, x + lk.x, lk.y + y, plyVar, brdVar, settings, game, false, false, false,
+                                false,
+                                true, lk.a, lk.h)
+                        end
                     end
                 end
             end
