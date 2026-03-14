@@ -585,7 +585,7 @@ function gfx.dPStats(xOff, yOff, wWd, wHg, stats, records, fonts, isRecords)
                     " comb. ",
                     gCol.orange,
                     "&", gCol.purple, " strk: ", gCol.white, "x" ..
-                stats.maxComb .. ", x" .. stats.maxStrk }, fonts.othr, 0 + xOff,
+                stats.maxComb .. ", x" .. stats.maxStrk .. " | " .. string.format("%.2f", stats.maxPPS) .. " p/s, " .. stats.finesse .. "F" }, fonts.othr, 0 + xOff,
                 wHg - 30 + yOff, wWd, "center")
         end
     else

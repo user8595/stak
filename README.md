@@ -35,7 +35,7 @@ wip puzzle game
 
 ## requirements
 
-- [LOVE 11.5+](love2d.org) (might not work on versions <= 11.4)
+- [LOVE 11.5+](https://love2d.org) (might not work on versions <= 11.4)
 
 ## credits
 
