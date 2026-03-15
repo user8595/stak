@@ -373,7 +373,7 @@ function states.bagInit(plyVar, settings)
     elseif settings.bagType == "classicM" then
         -- might improve this later
         local firstPc = { 1, 5, 4, 7 }
-        for i = 1, plyVar.nDisp do
+        for _ = 1, plyVar.nDisp do
             if #plyVar.nHist ~= 4 then
                 table.insert(plyVar.next, firstPc[lmth.random(1, #firstPc)])
                 table.insert(plyVar.next, bagDef[love.math.random(1, #bagDef)])
@@ -404,9 +404,7 @@ function states.bagInit(plyVar, settings)
             table.insert(plyVar.next, nPiece)
         end
     end
-    if plyVar.currBlk ~= plyVar.next[1] then
-        plyVar.currBlk = plyVar.next[1]
-    end
+    plyVar.currBlk = plyVar.next[1]
 end
 
 function states.addHistory(plyVar, settings)

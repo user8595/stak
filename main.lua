@@ -590,7 +590,9 @@ end
 function love.resize(w, h)
     wWd, wHg = w, h
     -- update game scale from window height
-    if ls.getOS() ~= "Android" or ls.getOS() ~= "iOS" then
+    if ls.getOS() == "Android" or ls.getOS() == "iOS" then
+        settings.scale = 0.9
+    else
         settings.scale = wHg / 600
     end
 end
@@ -671,20 +673,20 @@ function love.update(dt)
     if stats.line >= 40 and not game.is40LClr then
         tInfo.new(textInfo,
             "40 lines clear! (" ..
-            stats.timeDisp .. ", " .. string.format("%.2f", stats.stacks / stats.time) .. " pps)", 0, wHg - 30, true,
+            stats.timeDisp .. ", " .. string.format("%.2f", stats.currPPS) .. " pps)", 0, wHg - 30, true,
             gCol.yellow, 1, 4)
         if records.bestSpr.time <= 0 then
-            records.bestSpr.time = stats.time
-            records.bestSpr.maxpps = stats.maxPPS
-            records.bestSpr.finesse = stats.finesse
             game.isHScore = true
             tInfo.new(textInfo, "first sprint pb!", 0, wHg - 30, true, gCol.green, 1, 4)
         elseif stats.time < records.bestSpr.time then
-            records.bestSpr.time = stats.time
-            records.bestSpr.maxpps = stats.maxPPS
-            records.bestSpr.finesse = stats.finesse
             game.isHScore = true
             tInfo.new(textInfo, "new sprint pb!", 0, wHg - 30, true, gCol.green, 1, 4)
+        end
+        if game.isHScore then
+            records.bestSpr.time = stats.time
+            records.bestSpr.pps = stats.currPPS
+            records.bestSpr.maxpps = stats.maxPPS
+            records.bestSpr.finesse = stats.finesse
         end
         game.is40LClr = true
     end
@@ -699,9 +701,10 @@ function love.update(dt)
         end
     end
 
+    stats.currPPS = stats.stacks / stats.time
+
     if not game.isPaused and not game.isPauseDelay and not game.isFail and not game.isCountdown then
         stats.time = stats.time + dt
-        stats.currPPS = stats.stacks / stats.time
 
         -- flip update
         states.flipStateUpd(ply)
@@ -719,6 +722,7 @@ function love.update(dt)
             records.bestScore.line = stats.line
             records.bestScore.lv = stats.lv
             records.bestScore.time = stats.time
+            records.bestScore.pps = stats.currPPS
             records.bestScore.maxpps = stats.maxPPS
             records.bestScore.finesse = stats.finesse
             game.isHScore = true
@@ -996,9 +1000,6 @@ function love.update(dt)
             end
             if #stats.hDEfct > 0 then
                 tClear(stats.hDEfct)
-            end
-            if #textInfo > 0 then
-                tClear(textInfo)
             end
             if ply.isHDrop then
                 ply.isHDrop = false

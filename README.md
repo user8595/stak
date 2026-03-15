@@ -6,6 +6,8 @@ wip puzzle game
 > <i>This game contains slight amounts of flashing lights.</i>\
 > <i>As such, it may not be suitable to people with [photosensitive epilepsy](https://en.wikipedia.org/wiki/Photosensitive_epilepsy).</i>
 
+<i>See the <code>[settings.lua](/lua/default/settings.lua)</code> and <code>[ply.lua](/lua/default/ply.lua)</code> for game settings.</i>
+
 ## controls
 
 ### # Ingame

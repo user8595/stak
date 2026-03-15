@@ -6,12 +6,14 @@ return {
         lv = 0,
         line = 0,
         finesse = 0,
+        pps = 0,
         maxpps = 0
     },
     -- 40 lines
     bestSpr = {
         time = 0,
         finesse = 0,
-        maxpps = 0,
+        pps = 0,
+        maxpps = 0
     }
 }
