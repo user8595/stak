@@ -28,6 +28,7 @@ local tInfo          = require "lua.textInfo"
 local cFlash         = require "lua.colFlash"
 local button         = require "lua.button"
 local keys           = require "lua.default.keys"
+local uiVars         = require "lua.default.uiVars"
 local restartUI      = require "lua.restartUI"
 local stats          = require "lua.default.stats"
 local gCol           = require "lua.gCol"
@@ -37,6 +38,7 @@ local initvars       = require "lua.game.initvars"
 local gStyle         = require "lua.game.gStyle"
 local records        = require "lua.default.records"
 local save           = require "lua.game.save"
+local ctrl           = require "lua.game.ctrl"
 
 local states         = require "lua.game.states"
 
@@ -116,6 +118,7 @@ local cFCb = cFlash.new(gCol.yellow, gCol.white, .05)
 local cFAC = cFlash.new(gColD.yellow, gColD.lBlue, .1)
 
 -- change in love.update()
+--TODO: Doesn't work though..
 local cfSpnCol = gColD.lBlue
 local cFSpn = cFlash.new(cfSpnCol, gColD.orange, .1)
 
@@ -225,6 +228,17 @@ function love.mousereleased(x, y, b, isTouch)
             end
         end
     end
+
+    if game.isFail then
+        if x > 0 and x < wWd and
+            y > wHg - 45 and y < wHg then
+            if game.statsIndex < 2 then
+                game.statsIndex = game.statsIndex + 1
+            else
+                game.statsIndex = 0
+            end
+        end
+    end
 end
 
 function love.keypressed(k)
@@ -277,227 +291,36 @@ function love.keypressed(k)
 
     if not game.isPaused and not game.isPauseDelay and not game.isFail and not game.isCountdown and not ply.isLnDly and not ply.isEnDly then
         if k == keys.left then
-            if states.bMove(ply, blocks, gBoard, ply.x - 1, ply.y, ply.bRot, gMtrx) then
-                ply.x = ply.x - 1
-                ply.dasTimer = 0
-                ply.arrTimer = 0
-
-                stats.finK = stats.finK + 1
-
-                if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                    states.addMoves(ply, game, true)
-                    if settings.rotSys == "SRS" then
-                        ply.lDTimer = 0
-                    end
-                end
-            end
+            ctrl.move(-1, ply, stats, settings, blocks, gBoard, gMtrx)
         end
 
         if k == keys.right then
-            if states.bMove(ply, blocks, gBoard, ply.x + 1, ply.y, ply.bRot, gMtrx) then
-                ply.x = ply.x + 1
-                ply.dasTimer = 0
-                ply.arrTimer = 0
-
-                stats.finK = stats.finK + 1
-
-                if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                    states.addMoves(ply, game, true)
-                    if settings.rotSys == "SRS" then
-                        ply.lDTimer = 0
-                    end
-                end
-            end
+            ctrl.move(1, ply, stats, settings, blocks, gBoard, gMtrx)
         end
 
         if k == keys.hDrop then
-            stats.finK = 0
-
-            local hY = states.lowestCells(ply, gMtrx, blocks, gBoard)
-            -- so many edge cases
-            if settings.hDropEffect and states.bMove(ply, blocks, gBoard, ply.x, ply.y + 1, ply.bRot, gMtrx) then
-                effect.newLockEffect(stats.hDEfct, blocks, ply, gMtrx, gBoard, states, true)
-            end
-
-            stats.scr = stats.scr + (2 * (hY - ply.y))
-            ply.y = hY
-
-            -- ignore locking piece on sonic lock
-            if not game.useSonicDrop then
-                states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
-            end
-
-            ply.isHDrop = true
-
-            if not game.useSonicDrop then
-                if not ply.isLnDly then
-                    ply.isEnDly = true
-                end
-                initvars.plyInit(ply)
-
-                ply.gTimer = 0
-                ply.lDTimer = 0
-
-                ply.arrTimer = 0
-                ply.sdrTimer = 0
-            else
-                ply.gTimer = 0
-            end
+            ctrl.hDrop(ply, stats, blocks, gMtrx, gBoard, settings)
         end
 
         if k == keys.ccw then
-            stats.finK = stats.finK + 1
-
-            local tR = ply.bRot - 1
-            local tRPrev = ply.bRot
-
-            ply.d = 1
-
-            if tR < 1 then
-                tR = #blocks[ply.currBlk]
-            end
-
-            local bR, dx, dy, t = states.bRotate(ply, settings, ply.x, ply.y, ply.d, tR, tRPrev, blocks, gBoard, gTable,
-                gMtrx)
-            if settings.rotSys ~= "SRS" then
-                if bR and states.bMove(ply, blocks, gBoard, ply.x, ply.y, tR, gMtrx) then
-                    ply.bRot = tR
-                end
-            else
-                if bR then
-                    ply.x, ply.y = dx, dy
-                    ply.bRot = tR
-                end
-            end
-
-            ply.spinReward = states.isSpin(ply.x, ply.y, ply, settings, gMtrx, t)
-
-            if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                if bR then
-                    ply.isAlrRot = true
-                end
-                states.addMoves(ply, game, stats)
-            end
+            ctrl.rot(-1, ply, stats, blocks, settings, gBoard, gMtrx, false)
         end
 
         if k == keys.cw then
-            stats.finK = stats.finK + 1
-
-            local tR = ply.bRot + 1
-            local tRPrev = ply.bRot
-
-            ply.d = 2
-
-            if tR > #blocks[ply.currBlk] then
-                tR = 1
-            end
-
-            local bR, dx, dy, t = states.bRotate(ply, settings, ply.x, ply.y, ply.d, tR, tRPrev, blocks, gBoard, gTable,
-                gMtrx)
-            if settings.rotSys ~= "SRS" then
-                if bR and states.bMove(ply, blocks, gBoard, ply.x, ply.y, tR, gMtrx) then
-                    ply.bRot = tR
-                end
-            else
-                if bR then
-                    ply.x, ply.y = dx, dy
-                    ply.bRot = tR
-                end
-            end
-
-            ply.spinReward = states.isSpin(ply.x, ply.y, ply, settings, gMtrx, t)
-
-            if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                if bR then
-                    ply.isAlrRot = true
-                end
-                states.addMoves(ply, game, stats)
-            end
+            ctrl.rot(1, ply, stats, blocks, settings, gBoard, gMtrx, false)
         end
 
         if k == keys.flip then
-            stats.finK = stats.finK + 1
-
-            local tR = ply.bRot
-            local tRPrev = ply.bRot
-
-            --TODO: Add 180 kicks
-            ply.d = 2
-
-            if settings.rotSys == "SRS" then
-                if tRPrev == 1 then
-                    tR = 3
-                end
-                if tRPrev == 2 then
-                    tR = 4
-                end
-                if tRPrev == 3 then
-                    tR = 1
-                end
-                if tRPrev == 4 then
-                    tR = 2
-                end
-            else
-                if ply.currBlk ~= 1 or ply.currBlk ~= 6 then
-                    if tRPrev == 1 then
-                        tR = 3
-                    end
-                    if tRPrev == 2 then
-                        tR = 4
-                    end
-                    if tRPrev == 3 then
-                        tR = 1
-                    end
-                    if tRPrev == 4 then
-                        tR = 2
-                    end
-                end
-            end
-
-            local bR, dx, dy, t = states.bRotate(ply, settings, ply.x, ply.y, ply.d, tR, tRPrev, blocks, gBoard, gTable,
-                gMtrx)
-            if settings.rotSys ~= "SRS" then
-                if bR and states.bMove(ply, blocks, gBoard, ply.x, ply.y, tR, gMtrx) then
-                    ply.bRot = tR
-                end
-            else
-                if bR then
-                    ply.x, ply.y = dx, dy
-                    ply.bRot = tR
-                end
-            end
-
-            ply.spinReward = states.isSpin(ply.x, ply.y, ply, settings, gMtrx, t)
-
-            if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                if bR then
-                    ply.isAlrRot = true
-                end
-                states.addMoves(ply, game, stats)
-            end
+            ctrl.rot(1, ply, stats, blocks, settings, gBoard, gMtrx, true)
         end
 
         if k == keys.sDrop then
-            stats.finK = stats.finK + 1
-
-            if states.bMove(ply, blocks, gBoard, ply.x, ply.y + 1, ply.bRot, gMtrx) then
-                ply.sdrTimer = 0
-                ply.y = ply.y + 1
-            else
-                if game.useSonicDrop then
-                    if ply.lDTimer < ply.lDelay then
-                        ply.lDTimer = ply.lDelay
-                    end
-                end
-            end
+            ctrl.sDrop(ply, stats, blocks, gBoard, gMtrx)
         end
 
         -- hold key function
         if k == keys.hold and game.useHold then
-            if not ply.isAlreadyHold and not ply.isLnDly and not ply.isEnDly then
-                stats.finK = 0
-                states.holdFunc(ply, settings)
-            end
+            ctrl.hold(ply, stats, settings)
         end
 
         if k == "o" then
@@ -520,7 +343,10 @@ function love.keypressed(k)
     if game.isFail then
         if k == keys.restart then
             if game.isHScore then
+                --TODO: Make laoding screen actually appear (untested for now)
+                game.isLoading = true
                 save.writeScores(records)
+                game.isLoading = false
             end
             game.isFail = false
             game.showFailColors = false
@@ -692,6 +518,7 @@ function love.update(dt)
     end
 
     if game.isFail then
+        local mX, mY = lm.getPosition()
         if stats.qrTime > 0 then
             stats.qrTime = stats.qrTime - dt * (8 * settings.qRestartTime)
         else
@@ -699,8 +526,35 @@ function love.update(dt)
                 stats.qrTime = 0
             end
         end
+
+        -- fail stats hover effect
+        if mX > 0 and mX < wWd and
+            mY > wHg - 45 and mY < wHg then
+            uiVars.failHov = true
+            if lm.isDown(1) then
+                uiVars.failSel = true
+            else
+                uiVars.failSel = false
+            end
+        else
+            uiVars.failHov = false
+        end
+
+        -- show cursor on fail screen
+        lm.setVisible(true)
     end
 
+    if uiVars.failHov then
+        if uiVars.fHAlp < .65 then
+            uiVars.fHAlp = uiVars.fHAlp + dt * 10
+        end
+    else
+        if uiVars.fHAlp > 0 then
+            uiVars.fHAlp = uiVars.fHAlp - dt * 10
+        end
+    end
+
+    -- pps display
     stats.currPPS = stats.stacks / stats.time
 
     if not game.isPaused and not game.isPauseDelay and not game.isFail and not game.isCountdown then
@@ -909,14 +763,16 @@ function love.update(dt)
                 else
                     ply.y = states.lowestCells(ply, gMtrx, blocks, gBoard)
                     -- lock piece if player reached move limit
-                    if ply.moveR > ply.mRLimit and not ply.isHDrop or ply.moveRBlk > ply.mRBLimit and not ply.isHDrop then
-                        ply.lDTimer = 0
-                        states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
-                        if not game.isFail then
-                            initvars.plyInit(ply)
-                            ply.isEnDly = true
+                    if ply.moveR > ply.mRLimit or ply.moveRBlk > ply.mRBLimit then
+                        if not ply.isHDrop then
+                            ply.lDTimer = 0
+                            states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
+                            if not game.isFail then
+                                initvars.plyInit(ply)
+                                ply.isEnDly = true
+                            end
+                            ply.moveR = 0
                         end
-                        ply.moveR = 0
                     else
                         if not ply.isHDrop then
                             if ply.lDTimer < ply.lDelay then
@@ -1061,16 +917,20 @@ function love.draw()
             gfx.dOutline(gMtrx, game, gBoard, 2)
         end
 
+        ---@diagnostic disable:missing-parameter
         gfx.dBPersp(gMtrx, 0, 0, settings, ply, gBoard, game)
 
+        -- blocks/cells
         for y, _ in ipairs(gMtrx) do
             for x, br in ipairs(gMtrx[y]) do
                 if br ~= 0 then
+                    ---@diagnostic disable: missing-parameter
                     gfx.dBlocks(br, x, y, ply, gBoard, settings, game)
                 end
             end
         end
 
+        -- current block
         if not ply.isLnDly and not ply.isEnDly then
             gfx.dBPersp(blocks[ply.currBlk][ply.bRot], ply.x, ply.y, settings, ply, gBoard, game, true, ply.lDTimer)
             for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
@@ -1080,8 +940,7 @@ function love.draw()
                     else
                         if settings.showEmpty then
                             gfx.dBlocks(blk, x + ply.x, y + ply.y, ply, gBoard, settings, game, false, false, false, true,
-                                false, nil, nil, tex
-                                .danger)
+                                false, nil, nil, tex.danger)
                         end
                     end
                 end
@@ -1244,12 +1103,6 @@ function love.draw()
             "center")
 
         if stats.scrtG > 4 then
-            if game.showFailColors then
-                lg.setColor(gCol.bg[1], gCol.bg[2], gCol.bg[3], 0.65)
-                lg.rectangle("fill", gBoard.x + 0.55, gBoard.y + (gBoard.h * (gBoard.visH - 5.5)),
-                    gBoard.w * gBoard.visW - 0.85, 60)
-            end
-
             gfx.dScrtG(2, 2, stats, fonts, gBoard, true, true)
             gfx.dScrtG(0, 0, stats, fonts, gBoard, true, false)
             gfx.dScrtG(2, 2, stats, fonts, gBoard, false, true)
@@ -1276,10 +1129,19 @@ function love.draw()
             end
         else
             lg.setColor(gCol.bg)
-            lg.printf("<Space> show stats", fonts.othr, 2, wHg - 30 + 2, wWd, "center")
+            lg.printf((ls.getOS() ~= "Android" or ls.getOS() ~= "iOS") and "<Space> show stats" or "<touch> show stats",
+                fonts.othr, 2, wHg - 30 + 2, wWd, "center")
             lg.setColor(gCol.gOutline)
-            lg.printf("<Space> show stats", fonts.othr, 0, wHg - 30, wWd, "center")
+            lg.printf((ls.getOS() ~= "Android" or ls.getOS() ~= "iOS") and "<Space> show stats" or "<touch> show stats",
+                fonts.othr, 0, wHg - 30, wWd, "center")
         end
+
+        lg.setColor(
+            (uiVars.failSel) and gCol.gray[1] + .1 or gCol.white[1],
+            (uiVars.failSel) and gCol.gray[2] + .1 or gCol.white[2],
+            (uiVars.failSel) and gCol.gray[3] + .1 or gCol.white[3],
+            uiVars.fHAlp)
+        lg.rectangle("fill", 0, wHg - 5, wWd, 5)
     else
         -- key overlay
         if settings.showKOverlay then
@@ -1308,6 +1170,10 @@ function love.draw()
         lg.setColor(1, 1, 1, 1)
         gfx.dPStats(0, 0, wWd, wHg, stats, records, fonts, false)
         button.draw(pauseBtns)
+    end
+
+    if game.isLoading then
+        gfx.dLoad(fonts, wWd, wHg)
     end
 
     lg.setColor(1, 1, 1, 1)

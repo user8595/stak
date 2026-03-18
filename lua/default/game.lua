@@ -1,3 +1,4 @@
+---@return table
 local game = {
     isPaused = false,
     isPauseDelay = false,
@@ -5,6 +6,7 @@ local game = {
     isCountdown = false,
     isFail = false,
     isHScore = false,
+    isLoading = false,
     useHold = true,
     useSonicDrop = false,
     useMoveReset = true,

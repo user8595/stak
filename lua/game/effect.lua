@@ -36,6 +36,9 @@ function effect.newLineEffect(y, boardVar, lineEffectTab, isBoardFill, isScale)
     end
 end
 
+--- line effect update
+---@param lineEffectTab table
+---@param dt number
 function effect.lEUpdate(lineEffectTab, dt)
     for i, ln in ipairs(lineEffectTab) do
         if ln.a > 0 then
@@ -53,6 +56,8 @@ function effect.lEUpdate(lineEffectTab, dt)
     end
 end
 
+--- line effect drawing
+---@param lineEffectTab table
 function effect.lEDraw(lineEffectTab)
     for _, ln in ipairs(lineEffectTab) do
         lg.setColor(1, 1, 1, ln.a)
@@ -87,6 +92,9 @@ function effect.newLockEffect(lockEffectTab, blkTab, plyTab, mtrxTab, brdTab, st
     end
 end
 
+--- lock effect update
+---@param lockEffectTab table
+---@param dt number
 function effect.lkUpd(lockEffectTab, dt)
     for i, lk in ipairs(lockEffectTab) do
         if lk.a > 0 then
@@ -101,6 +109,12 @@ function effect.lkUpd(lockEffectTab, dt)
     end
 end
 
+--- lock effect drawing
+---@param lockEffectTab table
+---@param plyVar table
+---@param brdVar table
+---@param settings table
+---@param game table
 function effect.lkDrw(lockEffectTab, plyVar, brdVar, settings, game)
     for _, lk in ipairs(lockEffectTab) do
         for y, _ in ipairs(lk.blk) do
@@ -108,6 +122,7 @@ function effect.lkDrw(lockEffectTab, plyVar, brdVar, settings, game)
                 if blk ~= 0 then
                     lg.setColor(1, 1, 1, lk.a)
                     if not lk.HDrop then
+                        ---@diagnostic disable: missing-parameter
                         gfx.dBlocks(blk, x + lk.x, y + lk.y, plyVar, brdVar, settings, game, false, false, true)
                     end
                 end
@@ -116,6 +131,12 @@ function effect.lkDrw(lockEffectTab, plyVar, brdVar, settings, game)
     end
 end
 
+--- hard drop drawing
+---@param lockEffectTab table
+---@param plyVar table
+---@param brdVar table
+---@param settings table
+---@param game table
 function effect.hDDrw(lockEffectTab, plyVar, brdVar, settings, game)
     for _, lk in ipairs(lockEffectTab) do
         for y, _ in ipairs(lk.blk) do

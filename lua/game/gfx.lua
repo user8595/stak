@@ -8,6 +8,21 @@ local ipairs   = ipairs
 local lg       = love.graphics
 local gfx      = {}
 
+---@param bl any
+---@param x number
+---@param y number
+---@param plyVar table
+---@param brdVar table
+---@param settings table
+---@param game table
+---@param isGhost boolean
+---@param isOutline boolean
+---@param noColors boolean
+---@param lDlyFade boolean
+---@param isHDrop boolean
+---@param hdAlp any
+---@param hdHgt any
+---@diagnostic disable: missing-parameter
 function gfx.dBlocks(bl, x, y, plyVar, brdVar, settings, game, isGhost, isOutline, noColors, lDlyFade, isHDrop, hdAlp,
                      hdHgt, img)
     local colors = function()
@@ -89,6 +104,14 @@ function gfx.dBlocks(bl, x, y, plyVar, brdVar, settings, game, isGhost, isOutlin
     end
 end
 
+---@param isOutline boolean
+---@param plyVar table
+---@param bl table
+---@param gMtrx table
+---@param states table
+---@param gBoard table
+---@param settings table
+---@param game table
 function gfx.bGhost(isOutline, plyVar, bl, gMtrx, states, gBoard, settings, game)
     local gX, gY = plyVar.x, states.lowestCells(plyVar, gMtrx, bl, gBoard)
 
@@ -107,11 +130,13 @@ function gfx.bGhost(isOutline, plyVar, bl, gMtrx, states, gBoard, settings, game
     end
 end
 
+---@param mtrxTab table
+---@param gBoard table
 function gfx.dGrid(mtrxTab, gBoard)
     for y, _ in ipairs(mtrxTab) do
         for x, _ in ipairs(mtrxTab[y]) do
             if y ~= 1 then
-                lg.setColor(.80 * .3, .84 * .3, .96 * .3)
+                lg.setColor(.80 * .3, .84 * .3, .96 * .3, lerp.linear(0.75, 0.35, (y / gBoard.visH)))
                 lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1), gBoard.y + gBoard.h * (y - 1),
                     gBoard.w - (gBoard.w - 3),
                     gBoard.h - (gBoard.h - 3))
@@ -120,6 +145,10 @@ function gfx.dGrid(mtrxTab, gBoard)
     end
 end
 
+---@param mtrxTab table
+---@param game table
+---@param gBoard table
+---@param strokeWd number
 function gfx.dOutline(mtrxTab, game, gBoard, strokeWd)
     local sCol = function()
         if not game.isFail then
@@ -186,6 +215,15 @@ function gfx.dOutline(mtrxTab, game, gBoard, strokeWd)
 end
 
 -- okay this is crazy
+---@param mtrxTab table
+---@param xOff number
+---@param yOff number
+---@param settings table
+---@param ply table
+---@param gBoard table
+---@param game table
+---@param isLDlyFade boolean
+---@param a number
 function gfx.dBPersp(mtrxTab, xOff, yOff, settings, ply, gBoard, game, isLDlyFade, a)
     if settings.perspBlocks then
         for y, _ in ipairs(mtrxTab) do
@@ -253,6 +291,12 @@ end
 
 -- next & hold box drawing
 --TODO: Simplify function
+---@param blkTab table
+---@param plyTab table
+---@param game table
+---@param settings table
+---@param gBoard table
+---@param isHold boolean
 function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold)
     local hBlk = plyTab.hold
 
@@ -359,6 +403,14 @@ function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold)
 end
 
 -- danger block draw function
+---@param blkTab table
+---@param mtrxTab table
+---@param plyVar table
+---@param game table
+---@param states table
+---@param tex table
+---@param gBoard table
+---@param settings table
 function gfx.dDangerBlk(blkTab, mtrxTab, plyVar, game, states, tex, gBoard, settings)
     local nBlk = plyVar.next[2]
     local hBlk = plyVar.hold
@@ -392,6 +444,16 @@ function gfx.dDangerBlk(blkTab, mtrxTab, plyVar, game, states, tex, gBoard, sett
 end
 
 -- line clear ui effect
+---@param lClearTab table
+---@param fonts table
+---@param gTable table
+---@param gBoard table
+---@param game table
+---@param settings table
+---@param gColD table
+---@param cFAC table
+---@param cFSpn table
+---@param isAftrImg boolean
 function gfx.lClearDrw(lClearTab, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn, isAftrImg)
     for i, lnui in ipairs(lClearTab) do
         local clr = function()
@@ -496,6 +558,8 @@ function gfx.lClearDrw(lClearTab, fonts, gTable, gBoard, game, settings, gColD, 
 end
 
 -- line clear ui function update
+---@param lClearTab table
+---@param dt number
 function gfx.lClearUpd(lClearTab, dt)
     for i, lnui in ipairs(lClearTab) do
         if lnui.a > 0 then
@@ -515,6 +579,13 @@ function gfx.lClearUpd(lClearTab, dt)
 end
 
 -- secret grade indicator
+---@param x number
+---@param y number
+---@param stats table
+---@param fonts table
+---@param gBoard table
+---@param txt boolean
+---@param backdrop boolean
 function gfx.dScrtG(x, y, stats, fonts, gBoard, txt, backdrop)
     lg.push()
     lg.translate(x, y)
@@ -555,6 +626,14 @@ function gfx.dScrtG(x, y, stats, fonts, gBoard, txt, backdrop)
 end
 
 -- pause stats
+---@param xOff number
+---@param yOff number
+---@param wWd number
+---@param wHg number
+---@param stats table
+---@param records table
+---@param fonts table
+---@param isRecords boolean
 function gfx.dPStats(xOff, yOff, wWd, wHg, stats, records, fonts, isRecords)
     local yBestOff = 45
     if not isRecords then
@@ -575,7 +654,8 @@ function gfx.dPStats(xOff, yOff, wWd, wHg, stats, records, fonts, isRecords)
     else
         lg.printf(
             { gCol.yellow, "best spr.: ", gCol.white, initvars.dTime(records.bestSpr.time) .. ", ",
-                string.format("%.2f p/s | ", records.bestSpr.pps) .. string.format("%.2f p/s, ", records.bestSpr.maxpps) .. records.bestSpr.finesse .. "F" },
+                string.format("%.2f p/s | ", records.bestSpr.pps) ..
+                string.format("%.2f p/s, ", records.bestSpr.maxpps) .. records.bestSpr.finesse .. "F" },
             fonts.othr, 0 + xOff, (wHg - yBestOff) + yOff, wWd, "center")
 
         lg.printf({ gCol.purple, " best scr.: ", gCol.white,
@@ -583,12 +663,24 @@ function gfx.dPStats(xOff, yOff, wWd, wHg, stats, records, fonts, isRecords)
                 .bestScore.scr ..
                 ", lv. " .. records.bestScore.lv .. ", "
                 .. records.bestScore.line .. " ln., " .. initvars.dTime(records.bestScore.time) .. ", "
-                .. string.format("%.2f p/s | ", records.bestScore.pps) .. string.format("%.2f p/s, ", records.bestScore.maxpps) .. records.bestScore.finesse .. "F" },
+                ..
+                string.format("%.2f p/s | ", records.bestScore.pps) ..
+                string.format("%.2f p/s, ", records.bestScore.maxpps) .. records.bestScore.finesse .. "F" },
             fonts.othr, 0 + xOff,
             (wHg - yBestOff + 15) + yOff,
             wWd,
             "center")
     end
+end
+
+---@param fonts table
+---@param wWd number
+---@param wHg number
+function gfx.dLoad(fonts, wWd, wHg)
+    lg.setColor(gCol.bgB[1], gCol.bgB[2], gCol.bgB[3], 0.75)
+    lg.rectangle("fill", 0, wHg - 40, wWd, 40)
+    lg.setColor(1, 1, 1, 1)
+    lg.printf("loading..", fonts.othr, 0, wHg - 25, wWd - 20, "right")
 end
 
 return gfx

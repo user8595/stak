@@ -10,6 +10,8 @@ local states = {}
 local bagDef = { 1, 5, 4, 6, 3, 7, 2 }
 
 -- https://stackoverflow.com/questions/35572435/how-do-you-do-the-fisher-yates-shuffle-in-lua/68486276#68486276
+---@param t table
+---@return table
 local function shuffle(t)
     local s = {}
     for i = 1, #t do s[i] = t[i] end
@@ -20,6 +22,10 @@ local function shuffle(t)
     return s
 end
 
+--- concatenetes two tables without modifying the original tables
+---@param t1 table
+---@param t2 table
+---@return any
 local function concatTab(t1, t2)
     for i = 1, #t2 do
         t1[#t1 + 1] = t2[i]
@@ -27,6 +33,10 @@ local function concatTab(t1, t2)
     return t1
 end
 
+--- checks if a value is in a table
+---@param tab table
+---@param value any
+---@return boolean
 local function tabContains(tab, value)
     for _, tab in ipairs(tab) do
         if tab == value then
@@ -47,6 +57,12 @@ local function newLClrUI(lClrTab, str, cBlk, aSpd, aT, yOffSpd)
 end
 
 -- checks for filled rows
+---@param mtrxTab table
+---@param xInit number
+---@param xEnd number
+---@param y number
+---@param steps number
+---@return boolean
 local function solidRows(mtrxTab, xInit, xEnd, y, steps)
     for x = xInit, xEnd do
         if mtrxTab[y][x] == 0 and x % steps == 0 then
@@ -57,6 +73,7 @@ local function solidRows(mtrxTab, xInit, xEnd, y, steps)
 end
 
 -- flip piece update function
+---@param plyVar table
 function states.flipStateUpd(plyVar)
     if plyVar.bRot == 1 or plyVar.bRot == 4 then
         plyVar.flipD = 1
@@ -66,6 +83,11 @@ function states.flipStateUpd(plyVar)
     end
 end
 
+---@param plyVar table
+---@param mtrxTab table
+---@param blkTab table
+---@param gBoard table
+---@return number
 function states.lowestCells(plyVar, mtrxTab, blkTab, gBoard)
     local tX, tY = plyVar.x, plyVar.y
     while states.bMove(plyVar, blkTab, gBoard, tX, tY + 1, plyVar.bRot, mtrxTab) do
@@ -75,6 +97,11 @@ function states.lowestCells(plyVar, mtrxTab, blkTab, gBoard)
 end
 
 -- line clear function
+---@param y number
+---@param mtrxTab table
+---@param boardVar table
+---@param sts table
+---@param settings table
 function states.clearCells(y, mtrxTab, boardVar, sts, settings)
     sts.line = sts.line + 1
     sts.lineClr = sts.lineClr + 1
@@ -91,6 +118,9 @@ function states.clearCells(y, mtrxTab, boardVar, sts, settings)
     end
 end
 
+---@param y number
+---@param mtrxTab table
+---@param boardVar table
 function states.moveCells(y, mtrxTab, boardVar)
     for clrY = y, 2, -1 do
         for clrX = 1, boardVar.visW do
@@ -104,6 +134,14 @@ function states.moveCells(y, mtrxTab, boardVar)
     end
 end
 
+---@param plyVar table
+---@param blkTab any
+---@param brdTab any
+---@param tX any
+---@param tY any
+---@param tRot any
+---@param mtrxTab any
+---@return boolean
 function states.bMove(plyVar, blkTab, brdTab, tX, tY, tRot, mtrxTab)
     if blkTab[plyVar.currBlk][tRot] ~= nil then
         for y = 1, #blkTab[plyVar.currBlk][tRot] do
@@ -127,6 +165,21 @@ function states.bMove(plyVar, blkTab, brdTab, tX, tY, tRot, mtrxTab)
 end
 
 -- for wall kicks
+---@param plyVar any
+---@param settings any
+---@param tX any
+---@param tY any
+---@param d any
+---@param bRot any
+---@param bRotPrev any
+---@param blkTab any
+---@param brdTab any
+---@param gTable any
+---@param mtrxTab any
+---@return boolean
+---@return integer
+---@return integer
+---@return integer
 function states.bRotate(plyVar, settings, tX, tY, d, bRot, bRotPrev, blkTab, brdTab, gTable, mtrxTab)
     -- TODO: Fix wrong wallkicks
     if settings.rotSys == "ARS" then
@@ -177,6 +230,7 @@ function states.bRotate(plyVar, settings, tX, tY, d, bRot, bRotPrev, blkTab, brd
         end
         return false, tX, tY, 0
     end
+    return false, tX, tY, 0
 end
 
 -- block placement & line clear logic
