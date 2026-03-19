@@ -85,7 +85,7 @@ local button = {
                     mY > ((lg.getHeight() - btn.h) / 2) + btn.y and mY < ((lg.getHeight() - btn.h) / 2) + (btn.y + btn.h) then
                     if btn.t < 1 and not lm.isDown(1) then
                         btn.t = btn.t + dt * 8
-                    else
+                    elseif lm.isDown(1) then
                         if btn.t > 0.5 then
                             btn.t = btn.t - dt * 12
                         end

@@ -545,7 +545,7 @@ function love.update(dt)
     end
 
     if uiVars.failHov then
-        if uiVars.fHAlp < .65 then
+        if uiVars.fHAlp < .25 then
             uiVars.fHAlp = uiVars.fHAlp + dt * 10
         end
     else
@@ -1137,9 +1137,9 @@ function love.draw()
         end
 
         lg.setColor(
-            (uiVars.failSel) and gCol.gray[1] + .1 or gCol.white[1],
-            (uiVars.failSel) and gCol.gray[2] + .1 or gCol.white[2],
-            (uiVars.failSel) and gCol.gray[3] + .1 or gCol.white[3],
+            (uiVars.failSel) and gCol.gray[1] + .3 or gCol.white[1],
+            (uiVars.failSel) and gCol.gray[2] + .3 or gCol.white[2],
+            (uiVars.failSel) and gCol.gray[3] + .3 or gCol.white[3],
             uiVars.fHAlp)
         lg.rectangle("fill", 0, wHg - 5, wWd, 5)
     else
