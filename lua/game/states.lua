@@ -489,6 +489,8 @@ function states.bagInit(plyVar, settings)
             table.insert(plyVar.next, nPiece)
         end
     end
+    --TODO: Rework bag function for countdown scene
+    -- advance queue after countdown instead of using first piece in next for active piece
     plyVar.currBlk = plyVar.next[1]
 end
 

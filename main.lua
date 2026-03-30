@@ -39,6 +39,8 @@ local gStyle         = require "lua.game.gStyle"
 local records        = require "lua.default.records"
 local save           = require "lua.game.save"
 local ctrl           = require "lua.game.ctrl"
+local boardGoal      = require "lua.scenes.boardGoal"
+local countdown      = require "lua.scenes.countdown"
 
 local states         = require "lua.game.states"
 
@@ -115,6 +117,7 @@ end
 
 local cFStrk = cFlash.new(gCol.yellow, gCol.blue, .05)
 local cFCb = cFlash.new(gCol.yellow, gCol.white, .05)
+local cFGoal = cFlash.new(gCol.red, gCol.yellow, .05)
 local cFAC = cFlash.new(gColD.yellow, gColD.lBlue, .1)
 
 local cFSpn = cFlash.new(gColD.lBlue, gColD.purple, .1)
@@ -842,6 +845,7 @@ function love.update(dt)
 
         -- color flash update
         cFlash.upd(cFStrk, dt)
+        cFlash.upd(cFGoal, dt)
         cFlash.upd(cFCb, dt)
         cFlash.upd(cFAC, dt)
         cFlash.upd(cFSpn, dt)
@@ -895,6 +899,8 @@ function love.update(dt)
     if lk.isDown("=") then
         settings.scale = settings.scale + dt
     end
+
+    countdown.update(ply, blocks, settings, game, keys, dt)
 end
 
 function love.draw()
@@ -929,6 +935,9 @@ function love.draw()
     lg.setColor(0.5, 0.5, 0.5, 1)
     lg.line(gBoard.x, gBoard.y + gBoard.h, gBoard.x + (gBoard.h * gBoard.visW), gBoard.y + gBoard.h)
 
+    -- ##################
+    -- ### board area ###
+    -- ##################
     if not game.isPaused then
         -- hard drop effect
         effect.hDDrw(stats.hDEfct, ply, gBoard, settings, game)
@@ -950,8 +959,10 @@ function love.draw()
             end
         end
 
+        boardGoal.draw(game, stats.line, gBoard, gCol.yellow, cFGoal.col[cFGoal.index])
+
         -- current block
-        if not ply.isLnDly and not ply.isEnDly then
+        if not ply.isLnDly and not ply.isEnDly and not game.isCountdown then
             gfx.dBPersp(blocks[ply.currBlk][ply.bRot], ply.x, ply.y, settings, ply, gBoard, game, true,
                 ply.lDTimer / ply.lDelay)
             for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
@@ -982,6 +993,8 @@ function love.draw()
 
         gfx.dDangerBlk(blocks, gMtrx, ply, game, states, tex, gBoard, settings)
     end
+
+    countdown.draw(gBoard, fonts, game)
 
     -- game ui
     gStyle.failCol(game, stats, gCol, false, true)
@@ -1084,7 +1097,7 @@ function love.draw()
         gBoard.y + (gBoard.h * gBoard.visH))
 
     -- ghost piece
-    if not game.isPaused and not game.isFail and not ply.isLnDly and not ply.isEnDly and settings.showGhost then
+    if not game.isPaused and not game.isFail and not ply.isLnDly and not ply.isEnDly and not game.isCountdown and settings.showGhost then
         gfx.bGhost(false, ply, blocks, gMtrx, states, gBoard, settings, game)
         gfx.bGhost(true, ply, blocks, gMtrx, states, gBoard, settings, game)
     end

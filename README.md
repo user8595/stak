@@ -1,5 +1,4 @@
-<!-- how to align? -->
-<img src="./assets/icon.png" width="48" alt="stak">
+<img src="./assets/icon.png" width="48" alt="stak" align="left">
 
 ## stak
 

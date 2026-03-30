@@ -2,8 +2,14 @@
 local game = {
     isPaused = false,
     isPauseDelay = false,
-    --TODO: Implement game countdown system
+    
+    -- incomplete for now
     isCountdown = false,
+    cTimer = 0,
+    -- countdown length
+    cTarget = 3,
+    countA = 1,
+
     isFail = false,
     isHScore = false,
     isLoading = false,
@@ -13,13 +19,14 @@ local game = {
     showFailColors = false,
     isGravityInc = true,
     isInstantGrav = false,
+    showGoalLines = true,
     noGrav = false,
 
     statsIndex = 0, -- 0, 1, 2
 
     -- for 40 lines (txt for now)
-    --TODO: Implement game end lines indicator
     is40LClr = false,
+    target = 40,
 }
 
 return game
