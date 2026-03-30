@@ -16,6 +16,14 @@ local lerp = {
     easeOutQuart = function(a, b, t)
         return a + 1 - math.pow(1 - t, 4) * (b - a)
     end,
+    ---Cubic ease-in interpolation
+    ---@param a number
+    ---@param b number
+    ---@param t number
+    ---@return number
+    easeInCubic = function(a, b, t)
+        return a + (t ^ 3) * (b - a)
+    end,
     --- Cubic ease-out interpolation
     ---@param a number
     ---@param b number

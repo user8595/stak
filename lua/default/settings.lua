@@ -6,6 +6,7 @@ local settings = {
     coloredHDropEffect = true,
     perspBlocks = true,
     lineEffect = true,
+    lineParticles = true,
     lockEffect = true,
     showDanger = true,
     -- danger block from hold queue
@@ -13,7 +14,7 @@ local settings = {
     showKOverlay = true,
     -- small timer text
     altTimerUI = true,
-    qRestartTime = 0.75,
+    qRestartTime = 0.4,
     scale = 1,
     --TODO: Implement game UI scale
     uiScale = 1,
@@ -21,6 +22,9 @@ local settings = {
     bagType = "modern", -- "modern", "classicM", "classicRand"
 
     useIRS = true,
+    -- only line particle animation speed
+    fastAnim = false,
+
     -- broken for now
     useVSync = true,
 

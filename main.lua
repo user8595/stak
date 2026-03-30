@@ -117,10 +117,7 @@ local cFStrk = cFlash.new(gCol.yellow, gCol.blue, .05)
 local cFCb = cFlash.new(gCol.yellow, gCol.white, .05)
 local cFAC = cFlash.new(gColD.yellow, gColD.lBlue, .1)
 
--- change in love.update()
---TODO: Doesn't work though..
-local cfSpnCol = gColD.lBlue
-local cFSpn = cFlash.new(cfSpnCol, gColD.orange, .1)
+local cFSpn = cFlash.new(gColD.lBlue, gColD.purple, .1)
 
 local cFFail = cFlash.new(gCol.orange, gCol.red, .05)
 local cFFBG = cFlash.new(gColD.orange, gColD.red, .75)
@@ -252,7 +249,9 @@ function love.keypressed(k)
         end
     end
 
-    if k == "f11" then
+    if k == "f11" or
+        lk.isDown("lalt") and lk.isDown("return") or
+        lk.isDown("ralt") and lk.isDown("return") then
         if not lw.getFullscreen() then
             lw.setFullscreen(true)
         else
@@ -343,7 +342,7 @@ function love.keypressed(k)
     if game.isFail then
         if k == keys.restart then
             if game.isHScore then
-                --TODO: Make laoding screen actually appear (untested for now)
+                --TODO: Make loading screen actually appear (untested for now)
                 game.isLoading = true
                 save.writeScores(records)
                 game.isLoading = false
@@ -392,10 +391,19 @@ function love.keypressed(k)
             end
         end
         if k == "8" then
-            if not settings.showEmpty then
-                settings.showEmpty = true
+            settings.showEmpty = (not settings.showEmpty) and true or false
+        end
+        if k == "7" then
+            game.noGrav = (not game.noGrav) and true or false
+        end
+        if k == "6" then
+            settings.fastAnim = (not settings.fastAnim) and true or false
+            if settings.fastAnim then
+                tInfo.new(textInfo, "faster anim. (" .. tostring(settings.fastAnim) .. ")", 0, wHg - 50, true, gCol
+                    .white, 1, 1)
             else
-                settings.showEmpty = false
+                tInfo.new(textInfo, "slower anim. (" .. tostring(settings.fastAnim) .. ")", 0, wHg - 50, true, gCol.red,
+                    1, 1)
             end
         end
     end
@@ -464,11 +472,8 @@ function love.update(dt)
     end
 
     if settings.rotSys == "SRS" then
-        -- spin popup
-        cfSpnCol = gColD.purple
         blocks = gTable.blocks.srs
     else
-        cfSpnCol = gColD.lBlue
         blocks = gTable.blocks.ars
     end
 
@@ -489,11 +494,6 @@ function love.update(dt)
         else
             lm.setVisible(false)
         end
-    end
-
-    -- duct tape
-    if ply.y > gBoard.visH then
-        ply.y = gBoard.visH - ply.y
     end
 
     if stats.line >= 40 and not game.is40LClr then
@@ -642,9 +642,10 @@ function love.update(dt)
         end
 
         -- line effect
-        effect.lEUpdate(stats.lEffect, dt)
+        effect.lEUpdate(stats.lEffect, settings, dt)
         effect.lkUpd(stats.lkEfct, dt)
         effect.lkUpd(stats.hDEfct, dt)
+        effect.lPUpdate(stats.lPart, settings, dt)
 
         -- danger zone detection
         if states.dangerCheck(gMtrx, gBoard) == 1 then
@@ -741,10 +742,13 @@ function love.update(dt)
             end
 
             -- gravity function
+            local yInc = 1 + gTable.gravMult[ply.gMult]
+            local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
+            local yGap = lowestY - ply.y
             if ply.gTimer < ply.grav and
-                states.bMove(ply, blocks, gBoard, ply.x, ply.y + (1 + gTable.gravMult[ply.gMult]), ply.bRot, gMtrx)
+                states.bMove(ply, blocks, gBoard, ply.x, ply.y + yInc, ply.bRot, gMtrx)
                 and not game.isInstantGrav then
-                if not ply.isHDrop then
+                if not ply.isHDrop and not game.noGrav then
                     ply.gTimer = ply.gTimer + dt
                     ply.lDTimer = 0
                 end
@@ -753,15 +757,16 @@ function love.update(dt)
                 if not ply.isHDrop then
                     ply.gTimer = 0
                 end
-                if states.bMove(ply, blocks, gBoard, ply.x, ply.y + (1 + gTable.gravMult[ply.gMult]), ply.bRot, gMtrx) then
-                    if not game.isInstantGrav then
-                        ply.y = ply.y + (1 + gTable.gravMult[ply.gMult])
-                    else
-                        ply.y = states.lowestCells(ply, gMtrx, blocks, gBoard)
+                if states.bMove(ply, blocks, gBoard, ply.x, ply.y + yInc, ply.bRot, gMtrx) then
+                    if not game.noGrav then
+                        if not game.isInstantGrav and not (yGap < yInc) then
+                            ply.y = ply.y + yInc
+                        end
                     end
                     ply.lDTimer = 0
                 else
-                    ply.y = states.lowestCells(ply, gMtrx, blocks, gBoard)
+                    ply.y = lowestY
+
                     -- lock piece if player reached move limit
                     if ply.moveR > ply.mRLimit or ply.moveRBlk > ply.mRBLimit then
                         if not ply.isHDrop then
@@ -832,6 +837,7 @@ function love.update(dt)
         end
 
         gfx.lClearUpd(stats.lClearUI, dt)
+        gfx.lClearUpd(stats.lClearUITxt, dt)
         gfx.lClearUpd(stats.lClearAftrImg, dt)
 
         -- color flash update
@@ -844,7 +850,12 @@ function love.update(dt)
     if not game.isPaused and not game.isPauseDelay then
         -- game fail function
         if states.isGFail(ply, blocks, gBoard, gMtrx) and not ply.isLnDly and not ply.isEnDly then
+            if not game.isFail then
+                effect.newLineEffect(nil, gBoard, stats.failEffect, true, true, gCol.red, 0.5, 2.5)
+            end
+
             game.isFail = true
+
             if #stats.lEffect > 0 then
                 tClear(stats.lEffect)
             end
@@ -857,6 +868,10 @@ function love.update(dt)
             if #stats.hDEfct > 0 then
                 tClear(stats.hDEfct)
             end
+            if #stats.lPart > 0 then
+                tClear(stats.lPart)
+            end
+
             if ply.isHDrop then
                 ply.isHDrop = false
             end
@@ -870,6 +885,8 @@ function love.update(dt)
         -- for fail text
         cFlash.upd(cFFail, dt)
     end
+
+    effect.lEUpdate(stats.failEffect, settings, dt)
 
     if lk.isDown("-") then
         settings.scale = settings.scale - dt
@@ -889,6 +906,9 @@ function love.draw()
         (wHg / (2 * settings.scale)) - ((gBoard.h * (gBoard.visH + 1)) / 2)
     )
     lg.setLineWidth(1)
+
+    -- game over flash effect
+    effect.lEDraw(stats.failEffect)
 
     lg.setColor(gCol.bgB)
     lg.rectangle("fill", gBoard.x, gBoard.y + gBoard.h, gBoard.w * gBoard.visW, gBoard.h * gBoard.gH - gBoard.h)
@@ -932,7 +952,8 @@ function love.draw()
 
         -- current block
         if not ply.isLnDly and not ply.isEnDly then
-            gfx.dBPersp(blocks[ply.currBlk][ply.bRot], ply.x, ply.y, settings, ply, gBoard, game, true, ply.lDTimer)
+            gfx.dBPersp(blocks[ply.currBlk][ply.bRot], ply.x, ply.y, settings, ply, gBoard, game, true,
+                ply.lDTimer / ply.lDelay)
             for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
                 for x, blk in ipairs(blocks[ply.currBlk][ply.bRot][y]) do
                     if blk ~= 0 then
@@ -949,6 +970,15 @@ function love.draw()
 
         effect.lEDraw(stats.lEffect)
         effect.lkDrw(stats.lkEfct, ply, gBoard, settings, game)
+
+        if settings.perspBlocks then
+            lg.push()
+            lg.translate(0, -2.5)
+            effect.lPDrw(stats.lPart, settings)
+            lg.pop()
+        end
+
+        effect.lPDrw(stats.lPart, settings)
 
         gfx.dDangerBlk(blocks, gMtrx, ply, game, states, tex, gBoard, settings)
     end
@@ -1026,6 +1056,7 @@ function love.draw()
 
     -- line clear ui effects
     gfx.lClearDrw(stats.lClearUI, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn)
+    gfx.lClearDrw(stats.lClearUITxt, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn)
     gfx.lClearDrw(stats.lClearAftrImg, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn, true)
 
     -- combo & streak ui
@@ -1234,6 +1265,7 @@ function love.draw()
                 "\ngTimer: " ..
                 ply.gTimer .. " / " .. ply.grav ..
                 "\ngMult: " .. gTable.gravMult[ply.gMult] ..
+                "\nnoGrav: " .. tostring(game.noGrav) ..
                 "\nlDTimer: " ..
                 ply.lDTimer .. " / " .. ply.lDelay .. "\nlnDlyTmr: " .. ply.lnDlyTmr .. " / " .. ply.lnDly ..
                 "\nisLnDly: " .. tostring(ply.isLnDly) .. "\nisEnDly: " .. tostring(ply.isEnDly) ..
@@ -1251,7 +1283,10 @@ function love.draw()
                 settings.bagType ..
                 "\nmoveR: " ..
                 ply.moveR ..
-                " / " .. ply.moveRBlk .. "\nstacks: " .. stats.stacks .. "\nisFail: " .. tostring(game.isFail) ..
+                " / " ..
+                ply.moveRBlk ..
+                "\nuseMoveReset: " ..
+                tostring(game.useMoveReset) .. "\nstacks: " .. stats.stacks .. "\nisFail: " .. tostring(game.isFail) ..
                 "\nfinesse: " .. stats.finK .. " / " .. stats.finesse ..
                 "\nsg: " ..
                 stats.clr.sgl ..

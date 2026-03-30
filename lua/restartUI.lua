@@ -51,9 +51,9 @@ local restartUI = {
             lg.printf("HOLD TO RESTART", font, 0, lg.getHeight() - (39 + (10 * (s - 1))), lg.getWidth(), "center")
             lg.setColor(qRCol())
             lg.rectangle("fill", lg.getWidth() / 2, lg.getHeight() - (10 * s),
-                -(lg.getWidth() / 2) * lerp.easeOutQuad(0, 1, stats.qrTime / settings.qRestartTime), 10 * s)
+                -(lg.getWidth() / 2) * lerp.linear(0, 1, stats.qrTime / settings.qRestartTime), 10 * s)
             lg.rectangle("fill", lg.getWidth() / 2, lg.getHeight() - (10 * s),
-                (lg.getWidth() / 2) * lerp.easeOutQuad(0, 1, stats.qrTime / settings.qRestartTime), 10 * s)
+                (lg.getWidth() / 2) * lerp.linear(0, 1, stats.qrTime / settings.qRestartTime), 10 * s)
         end
     end
 }

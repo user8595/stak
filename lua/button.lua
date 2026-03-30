@@ -2,6 +2,11 @@ local lg, lm = love.graphics, love.mouse
 local mX, mY = lm.getPosition()
 local ipairs = ipairs
 
+local function mDownCtr(mX, mY, btn)
+    return mX > ((lg.getWidth() - btn.w) / 2) + btn.x and mX < ((lg.getWidth() - btn.w) / 2) + (btn.x + btn.w) and
+        mY > ((lg.getHeight() - btn.h) / 2) + btn.y and mY < ((lg.getHeight() - btn.h) / 2) + (btn.y + btn.h)
+end
+
 local button = {
     new = function(str, font, x, y, w, h, func, col, colActive, colTxt, colTxtActive, isCenter)
         if assert(type(col) == "table" and type(colTxt) == "table", "color value must be table") and assert(type(func) == "function", "func value must be function") then
@@ -81,18 +86,27 @@ local button = {
         mX, mY = lm.getPosition()
         for _, btn in ipairs(buttonTab) do
             if btn.isCenter then
-                if mX > ((lg.getWidth() - btn.w) / 2) + btn.x and mX < ((lg.getWidth() - btn.w) / 2) + (btn.x + btn.w) and
-                    mY > ((lg.getHeight() - btn.h) / 2) + btn.y and mY < ((lg.getHeight() - btn.h) / 2) + (btn.y + btn.h) then
-                    if btn.t < 1 and not lm.isDown(1) then
-                        btn.t = btn.t + dt * 8
-                    elseif lm.isDown(1) then
-                        if btn.t > 0.5 then
+                if not lm.isDown(1) then
+                    if mDownCtr(mX, mY, btn) then
+                        if btn.t < 1 then
+                            btn.t = btn.t + dt * 8
+                        end
+                    else
+                        if btn.t > 0 then
                             btn.t = btn.t - dt * 12
                         end
                     end
                 else
-                    if btn.t > 0 then
-                        btn.t = btn.t - dt * 12
+                    if mDownCtr(mX, mY, btn) then
+                        if btn.t >= 0.5 then
+                            btn.t = tonumber(string.format("%.2f", btn.t - dt * 12))
+                        else
+                            btn.t = tonumber(string.format("%.2f", btn.t + dt * 12))
+                        end
+                    else
+                        if btn.t > 0 then
+                            btn.t = btn.t - dt * 12
+                        end
                     end
                 end
             else

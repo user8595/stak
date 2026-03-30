@@ -61,12 +61,13 @@ function initvars.gameInit(plyVar, sts, gameVar)
     sts.nxtLines = 10
     sts.scrtG = 1
     sts.qrTime = 0
-    
+
     gameVar.is40LClr = false
     gameVar.isHScore = false
     gameVar.statsIndex = 0
     tClear(sts.lClearUI)
     tClear(sts.lClearAftrImg)
+    tClear(sts.lClearUITxt)
 end
 
 function initvars.mtrxClr(mtrxTab)

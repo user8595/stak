@@ -168,12 +168,13 @@ function ctrl.rot(d, ply, stats, blocks, settings, gBoard, gMtrx, isFlip)
             ply.bRot = tR
         end
     end
-
-    ply.spinReward = states.isSpin(ply.x, ply.y, ply, settings, gMtrx, t)
-
+    
     if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
         if bR then
             ply.isAlrRot = true
+            ply.spinReward = states.isSpin(ply.x, ply.y, ply, blocks, gBoard, gMtrx, t)
+        else
+            ply.spinReward = 0
         end
         states.addMoves(ply, game, false)
     end

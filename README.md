@@ -1,3 +1,6 @@
+<!-- how to align? -->
+<img src="./assets/icon.png" width="48" alt="stak">
+
 ## stak
 
 wip puzzle game
@@ -6,7 +9,7 @@ wip puzzle game
 > <i>This game contains slight amounts of flashing lights.</i>\
 > <i>As such, it may not be suitable to people with [photosensitive epilepsy](https://en.wikipedia.org/wiki/Photosensitive_epilepsy).</i>
 
-<i>See the <code>[settings.lua](/lua/default/settings.lua)</code> and <code>[ply.lua](/lua/default/ply.lua)</code> for game settings.</i>
+<i>See the <code>[settings.lua](./lua/default/settings.lua)</code>, <code>[ply.lua](./lua/default/ply.lua)</code> and <code>[game.lua](./lua/default/game.lua)</code> for game settings.</i>
 
 ## controls
 
@@ -16,7 +19,7 @@ wip puzzle game
 - <code>W</code>: Hard drop
 - <code>S</code>: Soft drop
 - <code>K</code>/<code>L</code>: Rotate clockwise/counterclockwise
-- <code>L</code>: Flip piece 180º (unimplemented for now)
+- <code>L</code>: Flip piece 180º
 - <code>Space</code>: Hold piece
 - <code>Escape</code>/<code>P</code>: Pause/unpause game
 - <code>`</code>: Quick restart game

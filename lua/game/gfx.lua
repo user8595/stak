@@ -1,11 +1,10 @@
 local gCol     = require "lua.gCol"
 local lerp     = require "lua.lerp"
 local gTable   = require "lua.tables"
-local settings = require "lua.default.settings"
 local initvars = require "lua.game.initvars"
-local game     = require "lua.default.game"
 local ipairs   = ipairs
 local lg       = love.graphics
+local lDlyVal  = .1
 local gfx      = {}
 
 ---@param bl any
@@ -60,7 +59,7 @@ function gfx.dBlocks(bl, x, y, plyVar, brdVar, settings, game, isGhost, isOutlin
                 elseif lDlyFade then
                     if plyVar.lDTimer > 0 then
                         lg.setColor(colors()[bl][1], colors()[bl][2], colors()[bl][3],
-                            lerp.linear(1, 0.5, plyVar.lDTimer / plyVar.lDelay))
+                            lerp.linear(1, lDlyVal, plyVar.lDTimer / plyVar.lDelay))
                     else
                         lg.setColor(colors()[bl])
                     end
@@ -150,6 +149,7 @@ end
 ---@param gBoard table
 ---@param strokeWd number
 function gfx.dOutline(mtrxTab, game, gBoard, strokeWd)
+    local settings = require "lua.default.settings"
     local sCol = function()
         if not game.isFail then
             return { 1, 1, 1, 1 }
@@ -261,10 +261,10 @@ function gfx.dBPersp(mtrxTab, xOff, yOff, settings, ply, gBoard, game, isLDlyFad
                     end
                     if isLDlyFade then
                         if not game.isFail then
-                            lg.setColor(colors()[blk][1], colors()[blk][2], colors()[blk][3], lerp.linear(1, 0, a))
+                            lg.setColor(colors()[blk][1], colors()[blk][2], colors()[blk][3], lerp.linear(1, .25, a))
                         else
                             if game.showFailColors then
-                                lg.setColor(colors()[blk][1], colors()[blk][2], colors()[blk][3], lerp.linear(1, 0, a))
+                                lg.setColor(colors()[blk][1], colors()[blk][2], colors()[blk][3], lerp.linear(1, .25, a))
                             else
                                 lg.setColor(colors().g)
                             end
@@ -281,7 +281,7 @@ function gfx.dBPersp(mtrxTab, xOff, yOff, settings, ply, gBoard, game, isLDlyFad
                         end
                     end
                     gfx.dBlocks(blk, x + xOff, y + yOff, ply, gBoard, settings, game, false, false, true, false, true, 1,
-                        0.15)
+                        lDlyVal)
                     lg.pop()
                 end
             end
@@ -486,72 +486,87 @@ function gfx.lClearDrw(lClearTab, fonts, gTable, gBoard, game, settings, gColD, 
 
         -- text background
         lg.push()
-        if not isAftrImg then
-            lg.scale(lnui.s, lnui.s)
-            -- lnui.s starts from 1
-            lg.translate((lnui.s * 10) - 10, -lnui.yOff)
-        end
-        local x, y = -52 - (35 * (i - 1)), gBoard.h * (gBoard.visH - 12) - 10
+        if string.len(lnui.str) <= 1 then
+            if not isAftrImg then
+                lg.scale(lnui.s, lnui.s)
+                -- lnui.s starts from 1
+                lg.translate((lnui.s * 10) - 10, -lnui.yOff)
+            end
+            local x, y = -52 - (35 * (i - 1)), gBoard.h * (gBoard.visH - 12) - 10
 
-        if type(lnui.str) ~= "number" then
+            if type(lnui.str) ~= "number" then
+                if not game.isFail then
+                    if not isAftrImg then
+                        lg.setColor(clr()[lnui.cBlk][1] + 0.2, clr()[lnui.cBlk][2] + 0.2, clr()[lnui.cBlk][3] + 0.2,
+                            lnui.a)
+                    else
+                        lg.setColor(clr()[lnui.cBlk])
+                    end
+                else
+                    lg.setColor(clr())
+                end
+                lg.polygon("fill",
+                    x,
+                    y - 10,
+
+                    x + 30,
+                    y - 10,
+
+                    x,
+                    (y + 30) - 10)
+            end
+
             if not game.isFail then
                 if not isAftrImg then
-                    lg.setColor(clr()[lnui.cBlk][1] + 0.2, clr()[lnui.cBlk][2] + 0.2, clr()[lnui.cBlk][3] + 0.2, lnui.a)
+                    lg.setColor(clr()[lnui.cBlk][1], clr()[lnui.cBlk][2], clr()[lnui.cBlk][3], lnui.a)
                 else
-                    lg.setColor(clr()[lnui.cBlk])
+                    if type(lnui.str) ~= "number" then
+                        lg.setColor(clr()[lnui.cBlk][1] + .5, clr()[lnui.cBlk][2] + .5, clr()[lnui.cBlk][3] + .5,
+                            lerp.linear(0, 0.85, lnui.a))
+                    else
+                        lg.setColor(clr()[lnui.cBlk][1] + .5, clr()[lnui.cBlk][2] + .5, clr()[lnui.cBlk][3] + .5,
+                            lerp.linear(0, 0.5, lnui.a))
+                    end
                 end
             else
                 lg.setColor(clr())
             end
-            lg.polygon("fill",
-                x,
-                y - 10,
 
-                x + 30,
-                y - 10,
-
-                x,
-                (y + 30) - 10)
-        end
-
-        if not game.isFail then
             if not isAftrImg then
-                lg.setColor(clr()[lnui.cBlk][1], clr()[lnui.cBlk][2], clr()[lnui.cBlk][3], lnui.a)
+                lg.rectangle("fill", x, y - 10, 30,
+                    30)
             else
-                if type(lnui.str) ~= "number" then
-                    lg.setColor(clr()[lnui.cBlk][1] + .5, clr()[lnui.cBlk][2] + .5, clr()[lnui.cBlk][3] + .5,
-                        lerp.linear(0, 0.85, lnui.a))
+                lg.rectangle("fill", x + lnui.yOff, (y - 10) + lnui.yOff, 30 - (lnui.yOff * 2),
+                    30 - (lnui.yOff * 2))
+            end
+
+            if not isAftrImg then
+                if not game.isFail then
+                    lg.setColor(clrB()[lnui.cBlk][1], clrB()[lnui.cBlk][2], clrB()[lnui.cBlk][3], lnui.a)
                 else
-                    lg.setColor(clr()[lnui.cBlk][1] + .5, clr()[lnui.cBlk][2] + .5, clr()[lnui.cBlk][3] + .5,
-                        lerp.linear(0, 0.5, lnui.a))
+                    lg.setColor(clr()[1], clr()[2], clr()[3], lnui.a)
                 end
+
+                -- backdrop text
+                lg.printf(lnui.str, fonts.ui, x + 2, (y + 2) - 10, 30,
+                    "center")
+
+                -- front text
+                lg.setColor(1, 1, 1, lnui.a)
+                lg.printf(lnui.str, fonts.ui, x, y - 10, 30, "center")
             end
         else
-            lg.setColor(clr())
-        end
-
-        if not isAftrImg then
-            lg.rectangle("fill", x, y - 10, 30,
-                30)
-        else
-            lg.rectangle("fill", x + lnui.yOff, (y - 10) + lnui.yOff, 30 - (lnui.yOff * 2),
-                30 - (lnui.yOff * 2))
-        end
-
-        -- backdrop text
-        if not isAftrImg then
+            -- "long" text
+            local x, y = -97, gBoard.h * (gBoard.visH - 12) - 10
+            lg.setColor(clr()[lnui.cBlk][1], clr()[lnui.cBlk][2], clr()[lnui.cBlk][3],
+                lerp.linear(0, 0.5, lnui.a))
+            lg.printf(lnui.str, fonts.othr, x + 2, (y - 30) + 2, 120, "center")
             if not game.isFail then
                 lg.setColor(clrB()[lnui.cBlk][1], clrB()[lnui.cBlk][2], clrB()[lnui.cBlk][3], lnui.a)
             else
                 lg.setColor(clr()[1], clr()[2], clr()[3], lnui.a)
             end
-
-            lg.printf(lnui.str, fonts.ui, x + 2, (y + 2) - 10, 30,
-                "center")
-
-            -- front text
-            lg.setColor(1, 1, 1, lnui.a)
-            lg.printf(lnui.str, fonts.ui, x, y - 10, 30, "center")
+            lg.printf(lnui.str, fonts.othr, x, y - 30, 120, "center")
         end
         lg.pop()
     end
@@ -606,12 +621,14 @@ function gfx.dScrtG(x, y, stats, fonts, gBoard, txt, backdrop)
             lg.setColor(gCol.gray[1] - .1, gCol.gray[2] - .1, gCol.gray[3] - .1)
         end
 
+        -- center text to board
         if string.len(tostring(gTable.sGrade[stats.scrtG])) > 1 then
             lg.translate(-fonts.time:getWidth(gTable.sGrade[stats.scrtG]) * 0.2, 0)
         end
 
         lg.printf(string.sub(gTable.sGrade[stats.scrtG], 1, 1), fonts.time, gBoard.x,
             gBoard.h * (gBoard.visH + 0.35) - 100, gBoard.w * gBoard.visW, "center")
+
         if string.len(gTable.sGrade[stats.scrtG]) > 1 then
             lg.printf(string.sub(gTable.sGrade[stats.scrtG], 2, 2), fonts.time, gBoard.x + 18,
                 (gBoard.h * (gBoard.visH + 0.35) + 8) - 100, gBoard.w * gBoard.visW, "center", 0)

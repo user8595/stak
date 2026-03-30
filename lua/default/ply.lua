@@ -30,7 +30,7 @@ local ply = {
 
     -- lock delay
     lDTimer = 0,
-    lDelay = 1000 / 1000,
+    lDelay = 500 / 1000,
 
     -- line clear delay
     isLnDly = false,
@@ -49,7 +49,7 @@ local ply = {
     moveR = 0,
     mRLimit = 15,
     moveRBlk = 0,
-    mRBLimit = 40,
+    mRBLimit = 15,
 
     isIRS = false,
 

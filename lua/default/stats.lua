@@ -13,7 +13,6 @@ local stats = {
         trp = 0,
         qd = 0,
         ac = 0,
-        --TODO: Implement t-spin detection
         spinTS = 0,
         spinTD = 0,
         spinTT = 0
@@ -41,12 +40,17 @@ local stats = {
     clrDbg = 0,
     sGFill = {},
     lClearUI = {},
+    lClearUITxt = {},
     lClearAftrImg = {},
     lEffect = {},
+    -- for game over board flash effect
+    failEffect = {},
     -- for locking effect
     lkEfct = {},
     -- for hard drop effect
     hDEfct = {},
+    -- for line clear particles
+    lPart = {},
     clearedLinesYPos = {}
 }
 

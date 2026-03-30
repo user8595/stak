@@ -83,6 +83,7 @@ function states.flipStateUpd(plyVar)
     end
 end
 
+-- returns the lowest y-axis position for the current piece
 ---@param plyVar table
 ---@param mtrxTab table
 ---@param blkTab table
@@ -277,6 +278,15 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
             -- store current y positions for cleared lines for use with moveCells() function
             -- same function as the hard drop effect
             table.insert(sts.clearedLinesYPos, y)
+
+            -- line particles
+            if settings.lineParticles then
+                for x = 1, brdTab.visW do
+                    -- boardVar == brdTab
+                    effect.newLPart(sts.lPart, brdTab, mtrxTab[y][x], x, y, 0.35)
+                end
+            end
+
             print("---------- cAnim: " .. tostring(cAnim) .. " ----------")
             states.clearCells(y, mtrxTab, brdTab, sts, settings)
             clear = false
@@ -294,6 +304,8 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
         -- clear line clear ui on new line clear
         tClear(sts.lClearUI)
         tClear(sts.lClearAftrImg)
+        tClear(sts.lClearUITxt)
+
         if #sts.lkEfct > 0 then
             tClear(sts.lkEfct)
         end
@@ -319,18 +331,25 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
             newLClrUI(sts.lClearAftrImg, sts.lineClr, plyVar.currBlk, 5, 10)
             newLClrUI(sts.lClearUI, "T", "T", 0.5, 0.65, -28)
         end
+        if plyVar.spinReward == 1 then
+            newLClrUI(sts.lClearUITxt, "MINI", "W", 5, 10)
+            newLClrUI(sts.lClearUITxt, "MINI", plyVar.currBlk, 0.5, 0.65, -28)
+        end
 
         -- base scores, added with line clear formula
-        -- normal spin
+        -- mini spin
+        --TODO: Rebalance score formula
         if plyVar.spinReward == 1 then
             sts.scr = sts.scr + (100 * sts.lv)
         elseif plyVar.spinReward == 2 then
-            -- mini spin
+            -- normal spin
             sts.scr = sts.scr + (400 * sts.lv)
         end
 
         sts.spinT = sts.spinT + 1
-        print("-------= spinReward: " .. plyVar.spinReward .. " (no line clr.) =-------")
+        if not (sts.lineClr > 0) then
+            print("-------= spinReward: " .. plyVar.spinReward .. " (no line clr.) =-------")
+        end
     end
 
     -- events after line clears
@@ -342,15 +361,44 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
         newLClrUI(sts.lClearAftrImg, sts.lineClr, plyVar.currBlk, 5, 10)
         newLClrUI(sts.lClearUI, sts.lineClr, plyVar.currBlk, 0.5, 0.65, -28)
 
+        -- line clear spin
+        if plyVar.spinReward > 0 and plyVar.isAlrRot then
+            local reward = (plyVar.spinReward == 2) and (((400 * sts.lineClr) * sts.lv) * (sts.strk + 1)) or
+                (((100 * sts.lineClr) * sts.lv) * (sts.strk + 1))
+
+            newLClrUI(sts.lClearAftrImg, sts.lineClr, plyVar.currBlk, 5, 10)
+            newLClrUI(sts.lClearUI, "T", "T", 0.5, 0.65, -28)
+
+            sts.scr = sts.scr + reward
+            if sts.lineClr == 1 then
+                sts.clr.spinTS = sts.clr.spinTS + 1
+            elseif sts.lineClr == 2 then
+                sts.clr.spinTD = sts.clr.spinTD + 1
+            elseif sts.lineClr == 3 then
+                sts.clr.spinTT = sts.clr.spinTT + 1
+            end
+            sts.strk = sts.strk + 1
+
+            print("-------= spinReward: " ..
+                plyVar.spinReward ..
+                " scr: " .. reward .. " (line clr.) =-------")
+        end
+
         if sts.lineClr == 1 then
             sts.clr.sgl = sts.clr.sgl + 1
-            sts.strk = 0
+            if plyVar.spinReward == 0 then
+                sts.strk = 0
+            end
         elseif sts.lineClr == 2 then
             sts.clr.dbl = sts.clr.dbl + 1
-            sts.strk = 0
+            if plyVar.spinReward == 0 then
+                sts.strk = 0
+            end
         elseif sts.lineClr == 3 then
             sts.clr.trp = sts.clr.trp + 1
-            sts.strk = 0
+            if plyVar.spinReward == 0 then
+                sts.strk = 0
+            end
         elseif sts.lineClr == 4 then
             sts.clr.qd = sts.clr.qd + 1
             sts.strk = sts.strk + 1
@@ -373,23 +421,6 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
         end
 
         sts.scr = sts.scr + (((200 + (200 * sts.lineClr)) + comboRwd + strkRwd) * sts.lv)
-
-        -- line clear spin
-        if plyVar.spinReward > 0 and plyVar.isAlrRot then
-            newLClrUI(sts.lClearAftrImg, sts.lineClr, plyVar.currBlk, 5, 10)
-            newLClrUI(sts.lClearUI, "T", "T", 0.5, 0.65, -28)
-            sts.scr = sts.scr + (((400 * sts.lineClr) * sts.lv) * (sts.strk + 1))
-            if sts.lineClr == 1 then
-                sts.clr.spinTS = sts.clr.spinTS + 1
-            elseif sts.lineClr == 2 then
-                sts.clr.spinTD = sts.clr.spinTD + 1
-            elseif sts.lineClr == 3 then
-                sts.clr.spinTT = sts.clr.spinTT + 1
-            end
-            print("-------= spinReward: " ..
-                plyVar.spinReward ..
-                "scr: " .. (((400 * sts.lineClr) * sts.lv) * (sts.strk + 1)) .. " (line clr.) =-------")
-        end
 
         if sts.line > sts.nxtLines then
             sts.lv = sts.lv + 1
@@ -538,16 +569,67 @@ function states.isGFail(plyVar, blkTab, brdTab, mtrxTab)
 end
 
 -- spin detection
---TODO: Finish spin detection
-function states.isSpin(xOff, yOff, ply, settings, mtrxTab, t)
+function states.isSpin(xOff, yOff, ply, blkTab, gBoard, mtrxTab, t)
+    if ply.currBlk == 6 or ply.currBlk == 1 then return 0 end
+
     local cellOff = {
         ---@format disable
-        { {0, 0}, {}, {}, {} }, -- 1
-        { {}, {}, {}, {} }, -- 2
-        { {}, {}, {}, {} }, -- 3
-        { {}, {}, {}, {} }, -- 4
+        { {1, 1}, {3, 1}, {3, 3}, {1, 3} }, -- 0
+        { {3, 1}, {3, 3}, {1, 3}, {1, 1} }, -- R
+        { {3, 3}, {1, 3}, {1, 1}, {3, 1} }, -- 2
+        { {1, 3}, {1, 1}, {3, 1}, {3, 3} }, -- L
     }
-    return 2
+    local blk = blkTab[ply.currBlk][ply.bRot]
+    local cOff = cellOff[ply.bRot]
+
+    local function cellCheck(i)
+        if xOff + cOff[i][1] > gBoard.visW or yOff + cOff[i][2] > gBoard.visH then
+            -- returns a solid block
+            return "O"
+        else
+            return mtrxTab[yOff + cOff[i][2]][xOff + cOff[i][1]]
+        end
+    end
+
+    if blk ~= nil then
+        -- normal spins
+        if (cellCheck(1) ~= 0 and cellCheck(2) ~= 0) and
+            (cellCheck(3) ~= 0 or cellCheck(4) ~= 0)
+            or t == 5 then
+            -- if cellCheck(1) ~= 0 then
+            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "T", xOff + cOff[1][1], yOff + cOff[1][2], 1)
+            -- end
+            -- if cellCheck(2) ~= 0 then
+            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "T", xOff + cOff[2][1], yOff + cOff[2][2], 1)
+            -- end
+            -- if cellCheck(3) ~= 0 then
+            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "T", xOff + cOff[3][1], yOff + cOff[3][2], 1)
+            -- end
+            -- if cellCheck(4) ~= 0 then
+            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "T", xOff + cOff[4][1], yOff + cOff[4][2], 1)
+            -- end
+            return 2
+        end
+
+        -- mini spins
+        if (cellCheck(1) ~= 0 or cellCheck(2) ~= 0) and
+            (cellCheck(3) ~= 0 and cellCheck(4) ~= 0) then
+            -- if cellCheck(1) ~= 0 then
+            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "O", xOff + cOff[1][1], yOff + cOff[1][2], 1)
+            -- end
+            -- if cellCheck(2) ~= 0 then
+            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "O", xOff + cOff[2][1], yOff + cOff[2][2], 1)
+            -- end
+            -- if cellCheck(3) ~= 0 then
+            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "O", xOff + cOff[3][1], yOff + cOff[3][2], 1)
+            -- end
+            -- if cellCheck(4) ~= 0 then
+            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "O", xOff + cOff[4][1], yOff + cOff[4][2], 1)
+            -- end
+            return 1
+        end
+    end
+    return 0
 end
 
 function states.isAllClr(mtrxTab, brdTab)

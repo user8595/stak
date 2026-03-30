@@ -13,6 +13,7 @@ local game = {
     showFailColors = false,
     isGravityInc = true,
     isInstantGrav = false,
+    noGrav = false,
 
     statsIndex = 0, -- 0, 1, 2
 

@@ -246,6 +246,30 @@ local tables = {
     },
 
     colTab = {
+        blk = {
+            classic = function(gCol)
+                return {
+                    I = gCol.red,
+                    Z = gCol.green,
+                    S = gCol.purple,
+                    L = gCol.orange,
+                    J = gCol.blue,
+                    O = gCol.yellow,
+                    T = gCol.lBlue,
+                }
+            end,
+            modern = function(gCol)
+                return {
+                    I = gCol.lBlue,
+                    Z = gCol.red,
+                    S = gCol.green,
+                    L = gCol.orange,
+                    J = gCol.blue,
+                    O = gCol.yellow,
+                    T = gCol.purple,
+                }
+            end
+        },
         nxtCol = {
             classic = function(gCol)
                 return {
@@ -324,7 +348,8 @@ local tables = {
                     { gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2 },
                     { gCol.lBlue[1] - .2,  gCol.lBlue[2] - .2,  gCol.lBlue[3] - .2 },
                     C = cFAC.col[cFAC.index],
-                    T = cFSpn.col[cFSpn.index]
+                    T = cFSpn.col[cFSpn.index],
+                    W = { 1, 1, 1 }
                 }
             end,
             modern = function(gColD, cFAC, cFSpn)
@@ -351,7 +376,8 @@ local tables = {
                     { gCol.yellow[1] - .2, gCol.yellow[2] - .2, gCol.yellow[3] - .2 },
                     { gCol.purple[1] - .2, gCol.purple[2] - .2, gCol.purple[3] - .2 },
                     C = cFAC.col[cFAC.index],
-                    T = cFSpn.col[cFSpn.index]
+                    T = cFSpn.col[cFSpn.index],
+                    W = { 1, 1, 1 }
                 }
             end
         }

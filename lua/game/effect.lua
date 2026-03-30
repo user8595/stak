@@ -1,21 +1,39 @@
-local lg = love.graphics
+local lg, lmth = love.graphics, love.math
 local lerp = require "lua.lerp"
+local gTable = require "lua.tables"
 local gfx = require "lua.game.gfx"
+local gCol = require "lua.gCol"
 local ipairs = ipairs
 local effect = {}
 
 -- line clear effect
-function effect.newLineEffect(y, boardVar, lineEffectTab, isBoardFill, isScale)
+--TODO: Refactor insert function
+function effect.newLineEffect(y, boardVar, lineEffectTab, isBoardFill, isScale, col, a, aSpd)
     if isBoardFill then
-        table.insert(lineEffectTab, {
-            x = boardVar.x,
-            y = boardVar.y + boardVar.h,
-            w = boardVar.w * boardVar.visW,
-            h = boardVar.h * boardVar.visH - boardVar.h,
-            a = 0.15,
-            isFill = true,
-        })
-    elseif isScale then
+        if not isScale then
+            table.insert(lineEffectTab, {
+                x = boardVar.x,
+                y = boardVar.y + boardVar.h,
+                w = boardVar.w * boardVar.visW,
+                h = boardVar.h * boardVar.visH - boardVar.h,
+                a = 0.15,
+                isFill = true,
+            })
+        else
+            table.insert(lineEffectTab, {
+                x = boardVar.x,
+                y = boardVar.y + boardVar.h,
+                w = boardVar.w * boardVar.visW,
+                h = boardVar.h * boardVar.visH - boardVar.h,
+                a = a,
+                aSpd = aSpd,
+                col = col,
+                s = 1,
+                isScale = true,
+                isFill = true,
+            })
+        end
+    elseif isScale and not isBoardFill then
         table.insert(lineEffectTab, {
             x = boardVar.x,
             y = boardVar.y + (boardVar.h * y),
@@ -36,17 +54,85 @@ function effect.newLineEffect(y, boardVar, lineEffectTab, isBoardFill, isScale)
     end
 end
 
+function effect.newLPart(lPartTab, boardVar, bl, x, y, a)
+    table.insert(lPartTab, {
+        bl = bl,
+        x = boardVar.x + (boardVar.w * (x - 1)),
+        y = boardVar.y + (boardVar.h * (y - 1)),
+        w = boardVar.w,
+        h = boardVar.h,
+        a = a,
+        t = 0,
+        vx = lmth.random(20, 50),
+        isMin = lmth.random(0, 1)
+    })
+end
+
+function effect.lPUpdate(lPartTab, settings, dt)
+    for i, lp in ipairs(lPartTab) do
+        if lp.a > 0 then
+            if lp.isMin == 0 then
+                lp.x = lp.x + dt * lp.vx
+            else
+                lp.x = lp.x - dt * lp.vx
+            end
+
+            if lp.t < 2 then
+                lp.t = lp.t + dt * 7
+            end
+
+            if not settings.fastAnim then
+                lp.a = lp.a - dt * 0.875
+                lp.y = lp.y + dt * lerp.easeOutCubic(-10, 50, lp.t)
+            else
+                lp.a = lp.a - dt * 1.1
+                lp.y = lp.y + dt * lerp.easeOutCubic(-5, 120, lp.t)
+            end
+        else
+            table.remove(lPartTab, i)
+        end
+    end
+end
+
+function effect.lPDrw(lPartTab, settings)
+    for i, lp in ipairs(lPartTab) do
+        local col, blnd = gTable.colTab.blk, .45
+        if settings.rotSys ~= "ARS" then
+            lg.setColor(
+                lerp.linear(col.modern(gCol)[lp.bl][1], gCol.white[1], blnd),
+                lerp.linear(col.modern(gCol)[lp.bl][2], gCol.white[2], blnd),
+                lerp.linear(col.modern(gCol)[lp.bl][3], gCol.white[3], blnd),
+                lp.a)
+        else
+            lg.setColor(
+                lerp.linear(col.classic(gCol)[lp.bl][1], gCol.white[1], blnd),
+                lerp.linear(col.classic(gCol)[lp.bl][2], gCol.white[2], blnd),
+                lerp.linear(col.classic(gCol)[lp.bl][3], gCol.white[3], blnd),
+                lp.a)
+        end
+        lg.rectangle("fill", lp.x, lp.y, lp.w, lp.h)
+    end
+end
+
 --- line effect update
 ---@param lineEffectTab table
+---@param settings table
 ---@param dt number
-function effect.lEUpdate(lineEffectTab, dt)
+function effect.lEUpdate(lineEffectTab, settings, dt)
     for i, ln in ipairs(lineEffectTab) do
         if ln.a > 0 then
-            if ln.isFill then
+            if ln.isFill and not ln.isScale then
                 ln.a = ln.a - dt * 0.65
+            elseif ln.isFill and ln.isScale then
+                ln.a = ln.a - dt * ln.aSpd
             else
-                ln.a = ln.a - dt * 5
+                if not settings.fastAnim then
+                    ln.a = ln.a - dt * 5
+                else
+                    ln.a = ln.a - dt * 5
+                end
             end
+            
             if ln.isScale then
                 ln.s = ln.s + dt * lerp.easeOutQuart(50, 0, ln.a)
             end
@@ -60,7 +146,11 @@ end
 ---@param lineEffectTab table
 function effect.lEDraw(lineEffectTab)
     for _, ln in ipairs(lineEffectTab) do
-        lg.setColor(1, 1, 1, ln.a)
+        if ln.col == nil then
+            lg.setColor(1, 1, 1, ln.a)
+        else
+            lg.setColor(ln.col[1], ln.col[2], ln.col[3], ln.a)
+        end
         if not ln.isScale then
             lg.rectangle("fill", ln.x, ln.y, ln.w, ln.h)
         else
@@ -76,9 +166,9 @@ function effect.newLockEffect(lockEffectTab, blkTab, plyTab, mtrxTab, brdTab, st
             x = plyTab.x,
             y = plyTab.y,
             -- had to pass it as a arg. because of a loop error
-            h = states.lowestCells(plyTab, mtrxTab, blkTab, brdTab) -
-                plyTab.y,
-            a = 0.15,
+            h = (states.lowestCells(plyTab, mtrxTab, blkTab, brdTab) -
+                plyTab.y),
+            a = 0.175,
             blk = blkTab[plyTab.currBlk][plyTab.bRot],
             HDrop = true
         })
