@@ -4,12 +4,16 @@ local game = {
     isPauseDelay = false,
     
     -- incomplete for now
-    isCountdown = false,
+    isCountdown = true,
     cTimer = 0,
     -- countdown length
     cTarget = 3,
     countA = 1,
 
+    --TODO: Use corutines for saving function?
+    loadingTxt = "loading..",
+
+    isQRestart = false,
     isFail = false,
     isHScore = false,
     isLoading = false,

@@ -15,9 +15,9 @@ function boardGoal.draw(game, lines, gBoard, col, colNearEnd)
         if lines >= goal and lines < goal + 20 then
             if not game.isFail then
                 if lines < goal + 10 then
-                    lg.setColor(col[1], col[2], col[3], 0.65)
+                    lg.setColor(col[1], col[2], col[3], 0.75)
                 else
-                    lg.setColor(colNearEnd[1], colNearEnd[2], colNearEnd[3], 0.75)
+                    lg.setColor(colNearEnd[1], colNearEnd[2], colNearEnd[3], 0.85)
                 end
             else
                 lg.setColor(gCol.gray[1], gCol.gray[2], gCol.gray[3], 0.35)

@@ -22,14 +22,16 @@ local function qRCol(isAlpha)
 end
 
 local restartUI = {
-    update = function(dt)
+    update = function(game, dt)
         if lk.isDown(keys.qRestart) then
+            game.isQRestart = true
             if stats.qrTime < settings.qRestartTime then
                 stats.qrTime = stats.qrTime + dt
             else
                 return true
             end
         else
+            game.isQRestart = false
             if stats.qrTime > 0 then
                 stats.qrTime = stats.qrTime - dt * (4 * settings.qRestartTime)
             else

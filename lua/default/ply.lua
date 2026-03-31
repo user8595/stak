@@ -14,6 +14,8 @@ local ply = {
     nHist = {},
     nDisp = 5,
     hold = 0,
+    -- tempoary value for hold func.
+    cBlkTemp = 0,
     isAlreadyHold = false,
     isAlrRot = false,
 

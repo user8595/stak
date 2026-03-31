@@ -46,6 +46,7 @@ function initvars.gameInit(plyVar, sts, gameVar)
     plyVar.lnDlyTmr = 0
     plyVar.enDlyTmr = 0
     plyVar.hold = 0
+    plyVar.cBlkTemp = 0
     plyVar.spinReward = 0
     plyVar.dangerA = 0
     sts.time = 0
@@ -62,6 +63,13 @@ function initvars.gameInit(plyVar, sts, gameVar)
     sts.scrtG = 1
     sts.qrTime = 0
 
+    if gameVar.isQRestart then
+        gameVar.cTimer = gameVar.cTimer - (gameVar.cTarget - 1)
+    else
+        gameVar.cTimer = 0
+    end
+
+    gameVar.isCountdown = true
     gameVar.is40LClr = false
     gameVar.isHScore = false
     gameVar.statsIndex = 0

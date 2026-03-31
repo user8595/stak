@@ -4,7 +4,7 @@ local gTable = require "lua.tables"
 
 -- next queue outline
 function gStyle.nxtCol(plyVar, settings, game, currBlk, gCol, gColD, isHold)
-    local nBlk = plyVar.next[2]
+    local nBlk = plyVar.next[1]
     local cols = function()
         if not game.isFail or game.showFailColors then
             if settings.rotSys == "ARS" then

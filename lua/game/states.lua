@@ -489,9 +489,6 @@ function states.bagInit(plyVar, settings)
             table.insert(plyVar.next, nPiece)
         end
     end
-    --TODO: Rework bag function for countdown scene
-    -- advance queue after countdown instead of using first piece in next for active piece
-    plyVar.currBlk = plyVar.next[1]
 end
 
 function states.addHistory(plyVar, settings)
@@ -520,14 +517,19 @@ function states.bagReset(plyVar, settings)
     states.addHistory(plyVar, settings)
 end
 
+function states.initBlk(plyVar, settings)
+    plyVar.currBlk = plyVar.next[1]
+    table.remove(plyVar.next, 1)
+end
+
 function states.nextQueue(plyVar, settings)
     if #plyVar.next > plyVar.nDisp + 1 then
-        table.remove(plyVar.next, 1)
         plyVar.currBlk = plyVar.next[1]
+        table.remove(plyVar.next, 1)
     else
         -- reshuffle bag on end of next queue
-        table.remove(plyVar.next, 1)
         plyVar.currBlk = plyVar.next[1]
+        table.remove(plyVar.next, 1)
         states.bagInit(plyVar, settings)
     end
 end
@@ -536,12 +538,12 @@ end
 function states.holdFunc(plyVar, settings)
     if plyVar.hold == 0 then
         plyVar.hold = plyVar.currBlk
-        states.nextQueue(plyVar, settings)
+        plyVar.currBlk = plyVar.next[1]
+        table.remove(plyVar.next, 1)
     else
-        -- replace block in hold with current block
+        plyVar.cBlkTemp = plyVar.currBlk
         plyVar.currBlk = plyVar.hold
-        -- replace block in hold with first block in next queue
-        plyVar.hold = plyVar.next[1]
+        plyVar.hold = plyVar.cBlkTemp
     end
 
     -- reset player position & values
@@ -572,7 +574,7 @@ end
 
 -- spin detection
 function states.isSpin(xOff, yOff, ply, blkTab, gBoard, mtrxTab, t)
-    if ply.currBlk == 6 or ply.currBlk == 1 then return 0 end
+    if ply.currBlk ~= 7 then return 0 end
 
     local cellOff = {
         ---@format disable

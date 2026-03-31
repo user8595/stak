@@ -18,7 +18,7 @@ local colFlash = {
             else
                 colVar.index = 1
             end
-            colVar.cTime = 0
+            colVar.cTime = colVar.cTime - colVar.time
         end
     end
 }

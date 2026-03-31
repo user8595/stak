@@ -132,7 +132,9 @@ local pauseBtns = {
         function()
             if game.isPaused then
                 game.isPaused = false
-                game.isPauseDelay = true
+                if not game.isCountdown then
+                    game.isPauseDelay = true
+                end
             end
         end,
         gCol.bg, { gCol.bg[1] + 0.1, gCol.bg[2] + 0.1, gCol.bg[3] + 0.1 }, gCol.white, gCol.green, true),
@@ -287,7 +289,9 @@ function love.keypressed(k)
             game.isPaused = true
         elseif not game.isFail then
             game.isPaused = false
-            game.isPauseDelay = true
+            if not game.isCountdown then
+                game.isPauseDelay = true
+            end
         end
     end
 
@@ -558,114 +562,159 @@ function love.update(dt)
     end
 
     -- pps display
-    stats.currPPS = stats.stacks / stats.time
+    stats.currPPS = (not game.isCountdown) and stats.stacks / stats.time or tonumber("0.00")
 
-    if not game.isPaused and not game.isPauseDelay and not game.isFail and not game.isCountdown then
-        stats.time = stats.time + dt
+    if not game.isPaused and not game.isPauseDelay and not game.isFail then
+        if not game.isCountdown then
+            stats.time = stats.time + dt
 
-        -- flip update
-        states.flipStateUpd(ply)
+            -- flip update
+            states.flipStateUpd(ply)
 
-        kOver.updKey(overlays)
+            kOver.updKey(overlays)
 
-        if stats.finK > 2 then
-            stats.finesse = stats.finesse + 1
-            stats.finK = 0
-        end
+            if stats.finK > 2 then
+                stats.finesse = stats.finesse + 1
+                stats.finK = 0
+            end
 
-        -- best score
-        if stats.scr > records.bestScore.scr then
-            records.bestScore.scr = stats.scr
-            records.bestScore.line = stats.line
-            records.bestScore.lv = stats.lv
-            records.bestScore.time = stats.time
-            records.bestScore.pps = stats.currPPS
-            records.bestScore.maxpps = stats.maxPPS
-            records.bestScore.finesse = stats.finesse
-            game.isHScore = true
-        end
+            -- best score
+            if stats.scr > records.bestScore.scr then
+                records.bestScore.scr = stats.scr
+                records.bestScore.line = stats.line
+                records.bestScore.lv = stats.lv
+                records.bestScore.time = stats.time
+                records.bestScore.pps = stats.currPPS
+                records.bestScore.maxpps = stats.maxPPS
+                records.bestScore.finesse = stats.finesse
+                game.isHScore = true
+            end
 
-        if restartUI.update(dt) then
-            game.isFail = false
-            game.showFailColors = false
-            initvars.gameInit(ply, stats, game)
-            initvars.mtrxClr(gMtrx)
-            states.bagReset(ply, settings)
-            initvars.plyInit(ply)
-            stats.qrTime = 0
-        end
+            if restartUI.update(game, dt) then
+                game.isFail = false
+                game.showFailColors = false
+                initvars.gameInit(ply, stats, game)
+                initvars.mtrxClr(gMtrx)
+                states.bagReset(ply, settings)
+                initvars.plyInit(ply)
+                stats.qrTime = 0
+            end
 
-        -- line delay function
-        if ply.isLnDly then
-            -- the ultimate performance boost /j
-            local ipair = ipairs
-            if ply.lnDlyTmr < ply.lnDly then
-                ply.lnDlyTmr = ply.lnDlyTmr + dt
-            else
-                print("shifted lines by -1 (lnDly: " .. ply.lnDly .. ")")
+            -- line delay function
+            if ply.isLnDly then
+                -- the ultimate performance boost /j
+                local ipair = ipairs
+                if ply.lnDlyTmr < ply.lnDly then
+                    ply.lnDlyTmr = ply.lnDlyTmr + dt
+                else
+                    print("shifted lines by -1 (lnDly: " .. ply.lnDly .. ")")
 
-                for _, yPos in ipair(stats.clearedLinesYPos) do
-                    states.moveCells(yPos, gMtrx, gBoard)
+                    for _, yPos in ipair(stats.clearedLinesYPos) do
+                        states.moveCells(yPos, gMtrx, gBoard)
+                    end
+
+                    ply.isEnDly = true
+
+                    ply.isLnDly = false
+                    ply.lnDlyTmr = 0
+                    if #stats.clearedLinesYPos > 0 then
+                        tClear(stats.clearedLinesYPos)
+                    end
                 end
-
-                ply.isEnDly = true
-
-                ply.isLnDly = false
+            else
                 ply.lnDlyTmr = 0
-                if #stats.clearedLinesYPos > 0 then
-                    tClear(stats.clearedLinesYPos)
-                end
             end
-        else
-            ply.lnDlyTmr = 0
-        end
 
-        -- entry delay (are)
-        if ply.isEnDly then
-            if ply.enDlyTmr < ply.enDly then
-                ply.enDlyTmr = ply.enDlyTmr + dt
+            -- entry delay (are)
+            if ply.isEnDly then
+                if ply.enDlyTmr < ply.enDly then
+                    ply.enDlyTmr = ply.enDlyTmr + dt
+                else
+                    -- for hold & rotate function reserving
+                    ply.isAlreadyHold = false
+                    ply.isAlrRot = false
+
+                    -- only advance next queue bag after line & entry delay
+                    states.addHistory(ply, settings)
+                    states.nextQueue(ply, settings)
+
+                    if settings.useIRS and ply.isIRS then
+                        initvars.checkIRS(ply, blocks, settings, game, keys)
+                    end
+
+                    ply.enDlyTmr = 0
+                    ply.isEnDly = false
+                end
             else
-                -- for hold & rotate function reserving
-                ply.isAlreadyHold = false
-                ply.isAlrRot = false
-
-                -- only advance next queue bag after line & entry delay
-                states.addHistory(ply, settings)
-                states.nextQueue(ply, settings)
-
-                if settings.useIRS and ply.isIRS then
-                    initvars.checkIRS(ply, blocks, settings, game, keys)
-                end
-
                 ply.enDlyTmr = 0
-                ply.isEnDly = false
             end
-        else
-            ply.enDlyTmr = 0
-        end
 
-        -- line effect
-        effect.lEUpdate(stats.lEffect, settings, dt)
-        effect.lkUpd(stats.lkEfct, dt)
-        effect.lkUpd(stats.hDEfct, dt)
-        effect.lPUpdate(stats.lPart, settings, dt)
+            -- line effect
+            effect.lEUpdate(stats.lEffect, settings, dt)
+            effect.lkUpd(stats.lkEfct, dt)
+            effect.lkUpd(stats.hDEfct, dt)
+            effect.lPUpdate(stats.lPart, settings, dt)
 
-        -- danger zone detection
-        if states.dangerCheck(gMtrx, gBoard) == 1 then
-            -- TODO: This is safe right?
-            if ply.dangerA < 0.15 then
-                ply.dangerA = tonumber(string.format("%.2f", ply.dangerA + dt))
-            elseif ply.dangerA > 0.15 then
-                ply.dangerA = tonumber(string.format("%.2f", ply.dangerA - dt))
+            -- danger zone detection
+            if states.dangerCheck(gMtrx, gBoard) == 1 then
+                -- TODO: This is safe right?
+                if ply.dangerA < 0.15 then
+                    ply.dangerA = tonumber(string.format("%.2f", ply.dangerA + dt))
+                elseif ply.dangerA > 0.15 then
+                    ply.dangerA = tonumber(string.format("%.2f", ply.dangerA - dt))
+                end
+            elseif states.dangerCheck(gMtrx, gBoard) == 2 then
+                if ply.dangerA < 0.25 then
+                    ply.dangerA = ply.dangerA + dt
+                end
+            else
+                if ply.dangerA > 0 then
+                    ply.dangerA = ply.dangerA - dt * 0.5
+                end
             end
-        elseif states.dangerCheck(gMtrx, gBoard) == 2 then
-            if ply.dangerA < 0.25 then
-                ply.dangerA = ply.dangerA + dt
+
+            if ply.isHDrop then
+                ply.isHDrop = false
             end
-        else
-            if ply.dangerA > 0 then
-                ply.dangerA = ply.dangerA - dt * 0.5
+
+            for _, blk in ipairs(gMtrx) do
+                gBoard.visW = #blk
             end
+
+            gBoard.visH = #gMtrx
+
+            -- max stats values
+            if stats.maxComb < stats.comb then
+                stats.maxComb = stats.comb - 1
+            end
+
+            if stats.maxStrk < stats.strk then
+                stats.maxStrk = stats.strk - 1
+            end
+
+            -- TODO: Is this delay reasonable?
+            if stats.maxPPS < stats.currPPS and stats.time > 0.25 then
+                stats.maxPPS = stats.currPPS
+            end
+
+            -- workaround for rotation
+            if blocks[ply.currBlk] ~= nil then
+                if ply.bRot > #blocks[ply.currBlk] then
+                    ply.bRot = 1
+                end
+            end
+
+            -- line clear effects update
+            gfx.lClearUpd(stats.lClearUI, dt)
+            gfx.lClearUpd(stats.lClearUITxt, dt)
+            gfx.lClearUpd(stats.lClearAftrImg, dt)
+
+            -- color flash update
+            cFlash.upd(cFStrk, dt)
+            cFlash.upd(cFGoal, dt)
+            cFlash.upd(cFCb, dt)
+            cFlash.upd(cFAC, dt)
+            cFlash.upd(cFSpn, dt)
         end
 
         -- ingame function
@@ -677,37 +726,43 @@ function love.update(dt)
                         if ply.arrTimer > ply.arr then
                             if lk.isDown(keys.left) then
                                 if states.bMove(ply, blocks, gBoard, ply.x - 1, ply.y, ply.bRot, gMtrx) then
-                                    ply.x = ply.x - 1
+                                    if not game.isCountdown then
+                                        ply.x = ply.x - 1
+
+                                        if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
+                                            states.addMoves(ply, game, true)
+                                            if settings.rotSys == "SRS" then
+                                                ply.lDTimer = 0
+                                            end
+                                        end
+                                    end
                                     if ply.arrTimer > 0 then
                                         ply.arrTimer = ply.arrTimer - ply.arr
-                                    end
-                                    if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                                        states.addMoves(ply, game, true)
-                                        if settings.rotSys == "SRS" then
-                                            ply.lDTimer = 0
-                                        end
                                     end
                                 end
                             end
                             if lk.isDown(keys.right) then
                                 if states.bMove(ply, blocks, gBoard, ply.x + 1, ply.y, ply.bRot, gMtrx) then
-                                    ply.x = ply.x + 1
+                                    if not game.isCountdown then
+                                        ply.x = ply.x + 1
+                                        if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
+                                            states.addMoves(ply, game, true)
+                                            if settings.rotSys == "SRS" then
+                                                ply.lDTimer = 0
+                                            end
+                                        end
+                                    end
                                     if ply.arrTimer > 0 then
                                         ply.arrTimer = ply.arrTimer - ply.arr
-                                    end
-                                    if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                                        states.addMoves(ply, game, true)
-                                        if settings.rotSys == "SRS" then
-                                            ply.lDTimer = 0
-                                        end
                                     end
                                 end
                             end
                         else
-                            ply.arrTimer = ply.arrTimer + dt
+                            -- dear god
+                            ply.arrTimer = ply.arrTimer + (1 / 60)
                         end
                     else
-                        ply.dasTimer = ply.dasTimer + dt
+                        ply.dasTimer = ply.dasTimer + (1 / 60)
                     end
                 else
                     ply.dasTimer = 0
@@ -719,8 +774,10 @@ function love.update(dt)
             if lk.isDown(keys.sDrop) then
                 if ply.sdrTimer > ply.sdr then
                     if states.bMove(ply, blocks, gBoard, ply.x, ply.y + 1, ply.bRot, gMtrx) then
-                        ply.y = ply.y + 1
-                        stats.scr = stats.scr + 1
+                        if not game.isCountdown then
+                            ply.y = ply.y + 1
+                            stats.scr = stats.scr + 1
+                        end
                         if ply.sdrTimer > ply.sdr and ply.sdrTimer > 0 then
                             ply.sdrTimer = ply.sdrTimer - ply.sdr
                         end
@@ -745,52 +802,54 @@ function love.update(dt)
             end
 
             -- gravity function
-            local yInc = 1 + gTable.gravMult[ply.gMult]
-            local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
-            local yGap = lowestY - ply.y
-            if ply.gTimer < ply.grav and
-                states.bMove(ply, blocks, gBoard, ply.x, ply.y + yInc, ply.bRot, gMtrx)
-                and not game.isInstantGrav then
-                if not ply.isHDrop and not game.noGrav then
-                    ply.gTimer = ply.gTimer + dt
-                    ply.lDTimer = 0
-                end
-                ply.isAlrRot = false
-            else
-                if not ply.isHDrop then
-                    ply.gTimer = 0
-                end
-                if states.bMove(ply, blocks, gBoard, ply.x, ply.y + yInc, ply.bRot, gMtrx) then
-                    if not game.noGrav then
-                        if not game.isInstantGrav and not (yGap < yInc) then
-                            ply.y = ply.y + yInc
-                        end
+            if not game.isCountdown then
+                local yInc = 1 + gTable.gravMult[ply.gMult]
+                local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
+                local yGap = lowestY - ply.y
+                if ply.gTimer < ply.grav and
+                    states.bMove(ply, blocks, gBoard, ply.x, ply.y + yInc, ply.bRot, gMtrx)
+                    and not game.isInstantGrav then
+                    if not ply.isHDrop and not game.noGrav then
+                        ply.gTimer = ply.gTimer + dt
+                        ply.lDTimer = 0
                     end
-                    ply.lDTimer = 0
+                    ply.isAlrRot = false
                 else
-                    ply.y = lowestY
-
-                    -- lock piece if player reached move limit
-                    if ply.moveR > ply.mRLimit or ply.moveRBlk > ply.mRBLimit then
-                        if not ply.isHDrop then
-                            ply.lDTimer = 0
-                            states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
-                            if not game.isFail then
-                                initvars.plyInit(ply)
-                                ply.isEnDly = true
+                    if not ply.isHDrop then
+                        ply.gTimer = 0
+                    end
+                    if states.bMove(ply, blocks, gBoard, ply.x, ply.y + yInc, ply.bRot, gMtrx) then
+                        if not game.noGrav then
+                            if not game.isInstantGrav and not (yGap < yInc) then
+                                ply.y = ply.y + yInc
                             end
-                            ply.moveR = 0
                         end
+                        ply.lDTimer = 0
                     else
-                        if not ply.isHDrop then
-                            if ply.lDTimer < ply.lDelay then
-                                ply.lDTimer = ply.lDTimer + dt
-                            else
-                                states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
+                        ply.y = lowestY
 
+                        -- lock piece if player reached move limit
+                        if ply.moveR > ply.mRLimit or ply.moveRBlk > ply.mRBLimit then
+                            if not ply.isHDrop then
+                                ply.lDTimer = 0
+                                states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
                                 if not game.isFail then
                                     initvars.plyInit(ply)
                                     ply.isEnDly = true
+                                end
+                                ply.moveR = 0
+                            end
+                        else
+                            if not ply.isHDrop then
+                                if ply.lDTimer < ply.lDelay then
+                                    ply.lDTimer = ply.lDTimer + dt
+                                else
+                                    states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
+
+                                    if not game.isFail then
+                                        initvars.plyInit(ply)
+                                        ply.isEnDly = true
+                                    end
                                 end
                             end
                         end
@@ -807,48 +866,6 @@ function love.update(dt)
                 ply.isIRS = false
             end
         end
-
-        if ply.isHDrop then
-            ply.isHDrop = false
-        end
-
-        for _, blk in ipairs(gMtrx) do
-            gBoard.visW = #blk
-        end
-
-        gBoard.visH = #gMtrx
-
-        -- max stats values
-        if stats.maxComb < stats.comb then
-            stats.maxComb = stats.comb - 1
-        end
-
-        if stats.maxStrk < stats.strk then
-            stats.maxStrk = stats.strk - 1
-        end
-
-        -- TODO: Is this delay reasonable?
-        if stats.maxPPS < stats.currPPS and stats.time > 0.25 then
-            stats.maxPPS = stats.currPPS
-        end
-
-        -- workaround for rotation
-        if blocks[ply.currBlk] ~= nil then
-            if ply.bRot > #blocks[ply.currBlk] then
-                ply.bRot = 1
-            end
-        end
-
-        gfx.lClearUpd(stats.lClearUI, dt)
-        gfx.lClearUpd(stats.lClearUITxt, dt)
-        gfx.lClearUpd(stats.lClearAftrImg, dt)
-
-        -- color flash update
-        cFlash.upd(cFStrk, dt)
-        cFlash.upd(cFGoal, dt)
-        cFlash.upd(cFCb, dt)
-        cFlash.upd(cFAC, dt)
-        cFlash.upd(cFSpn, dt)
     end
 
     if not game.isPaused and not game.isPauseDelay then
@@ -994,7 +1011,11 @@ function love.draw()
         gfx.dDangerBlk(blocks, gMtrx, ply, game, states, tex, gBoard, settings)
     end
 
-    countdown.draw(gBoard, fonts, game)
+    lg.push()
+    lg.translate(2, 2)
+    countdown.draw(gBoard, gColD, fonts, game, true)
+    lg.pop()
+    countdown.draw(gBoard, gColD, fonts, game, false)
 
     -- game ui
     gStyle.failCol(game, stats, gCol, false, true)
@@ -1217,7 +1238,7 @@ function love.draw()
     end
 
     if game.isLoading then
-        gfx.dLoad(fonts, wWd, wHg)
+        gfx.dLoad(game.loadingTxt, fonts, wWd, wHg)
     end
 
     lg.setColor(1, 1, 1, 1)
@@ -1255,7 +1276,8 @@ function love.draw()
                 states.lowestCells(ply, gMtrx, blocks, gBoard) ..
                 "\nnext: " ..
                 table.concat(ply.next, " ,") ..
-                "\nnHist: " .. table.concat(ply.nHist, ", ") .. "\nqrTime: " .. stats.qrTime ..
+                "\nnHist: " ..
+                table.concat(ply.nHist, ", ") .. "\ncBlkTemp: " .. ply.cBlkTemp .. "\nqrTime: " .. stats.qrTime ..
                 "\nclearedLinesYPos: " .. table.concat(stats.clearedLinesYPos, " ,") ..
                 "\nuseVSync: " .. tostring(settings.useVSync),
                 fonts.othr, 10, 10)

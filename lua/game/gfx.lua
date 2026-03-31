@@ -303,16 +303,17 @@ function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold)
     if not game.isPaused then
         if not isHold then
             for i = 1, plyTab.nDisp, 1 do
-                for y, _ in ipairs(blkTab[plyTab.next[2 + (i - 1)]][1]) do
-                    for x, blk in ipairs(blkTab[plyTab.next[2 + (i - 1)]][1][y]) do
+                local nBlk = 1 + (i - 1)
+                for y, _ in ipairs(blkTab[plyTab.next[nBlk]][1]) do
+                    for x, blk in ipairs(blkTab[plyTab.next[nBlk]][1][y]) do
                         if blk ~= 0 then
                             if settings.rotSys == "ARS" then
                                 lg.push()
-                                if plyTab.next[2 + (i - 1)] ~= 1 and
-                                    plyTab.next[2 + (i - 1)] ~= 6
+                                if plyTab.next[nBlk] ~= 1 and
+                                    plyTab.next[nBlk] ~= 6
                                 then
                                     lg.translate(10, 0)
-                                elseif plyTab.next[2 + (i - 1)] == 1 then
+                                elseif plyTab.next[nBlk] == 1 then
                                     lg.translate(0, 10)
                                 end
                                 gfx.dBlocks(blk, x + gBoard.visW + 1, y + 2 + (3 * (i - 1)), plyTab, gBoard, settings,
@@ -320,11 +321,11 @@ function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold)
                                 lg.pop()
                             else
                                 lg.push()
-                                if plyTab.next[2 + (i - 1)] ~= 1 and
-                                    plyTab.next[2 + (i - 1)] ~= 6
+                                if plyTab.next[nBlk] ~= 1 and
+                                    plyTab.next[nBlk] ~= 6
                                 then
                                     lg.translate(10, 0)
-                                elseif plyTab.next[2 + (i - 1)] == 1 then
+                                elseif plyTab.next[nBlk] == 1 then
                                     lg.translate(0, -10)
                                 end
                                 gfx.dBlocks(blk, x + gBoard.visW + 1, y + 3 + (3 * (i - 1)), plyTab, gBoard, settings,
@@ -690,14 +691,15 @@ function gfx.dPStats(xOff, yOff, wWd, wHg, stats, records, fonts, isRecords)
     end
 end
 
+---@param str string
 ---@param fonts table
 ---@param wWd number
 ---@param wHg number
-function gfx.dLoad(fonts, wWd, wHg)
+function gfx.dLoad(str, fonts, wWd, wHg)
     lg.setColor(gCol.bgB[1], gCol.bgB[2], gCol.bgB[3], 0.75)
     lg.rectangle("fill", 0, wHg - 40, wWd, 40)
     lg.setColor(1, 1, 1, 1)
-    lg.printf("loading..", fonts.othr, 0, wHg - 25, wWd - 20, "right")
+    lg.printf(str, fonts.othr, 0, wHg - 25, wWd - 20, "right")
 end
 
 return gfx
