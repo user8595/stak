@@ -51,10 +51,10 @@ function countdown.draw(gBoard, gColD, fonts, game, isBackdrop)
     end
     -- beeg
     if game.cTimer < game.cTarget then
-        lg.printf(math.floor(game.cTarget - game.cTimer) + 1, fonts.time, 0, (gBoard.h * gBoard.visH) / 2.14,
+        lg.printf(math.floor(game.cTarget - game.cTimer) + 1, fonts.time, 0, (gBoard.h * gBoard.visH) / 2.12,
             gBoard.w * gBoard.visW, "center")
     else
-        lg.printf("GO", fonts.beeg, 0, (gBoard.h * gBoard.visH) / 2.14,
+        lg.printf("GO", fonts.beeg, 0, (gBoard.h * gBoard.visH) / 2.19,
             gBoard.w * gBoard.visW, "center")
     end
 end

@@ -108,13 +108,6 @@ function ctrl.rot(d, ply, stats, blocks, settings, gBoard, gMtrx, isFlip)
     local tRPrev = ply.bRot
 
     if not isFlip then
-        -- flip state
-        if d == -1 then
-            ply.d = 1
-        else
-            ply.d = 2
-        end
-
         if d == -1 then
             if tR < 1 then
                 tR = #blocks[ply.currBlk]
@@ -156,8 +149,15 @@ function ctrl.rot(d, ply, stats, blocks, settings, gBoard, gMtrx, isFlip)
         end
     end
 
-    local bR, dx, dy, t = states.bRotate(ply, settings, ply.x, ply.y, ply.d, tR, tRPrev, blocks, gBoard, gTable,
-        gMtrx)
+    local bR, dx, dy, t
+    if not isFlip then
+        bR, dx, dy, t = states.bRotate(ply, settings, ply.x, ply.y, ply.d, tR, tRPrev, blocks, gBoard, gTable,
+            gMtrx, false)
+    else
+        bR, dx, dy, t = states.bRotate(ply, settings, ply.x, ply.y, ply.d, tR, tRPrev, blocks, gBoard, gTable,
+            gMtrx, true)
+    end
+
     if settings.rotSys ~= "SRS" then
         if bR and states.bMove(ply, blocks, gBoard, ply.x, ply.y, tR, gMtrx) then
             ply.bRot = tR
@@ -168,7 +168,7 @@ function ctrl.rot(d, ply, stats, blocks, settings, gBoard, gMtrx, isFlip)
             ply.bRot = tR
         end
     end
-    
+
     if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
         if bR then
             ply.isAlrRot = true

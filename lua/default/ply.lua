@@ -7,9 +7,12 @@ local ply = {
     initY = 0,
     currBlk = 1,
     bRot = 1,
+    
+    -- unused values for now
     d = 1, -- 1: ccw, 2: cw
-    spinReward = 1, -- 0: no spin, 1: mini spins, 2: normal spins
     flipD = 1, -- 1: ccw (1, 4), 2: cw (2, 3)
+    
+    spinReward = 1, -- 0: no spin, 1: mini spins, 2: normal spins
     next = {},
     nHist = {},
     nDisp = 5,

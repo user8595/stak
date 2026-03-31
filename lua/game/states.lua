@@ -22,7 +22,7 @@ local function shuffle(t)
     return s
 end
 
---- concatenetes two tables without modifying the original tables
+--- concatenates two tables without modifying the original tables
 ---@param t1 table
 ---@param t2 table
 ---@return any
@@ -34,6 +34,7 @@ local function concatTab(t1, t2)
 end
 
 --- checks if a value is in a table
+--- only works for numbered index tables
 ---@param tab table
 ---@param value any
 ---@return boolean
@@ -177,11 +178,12 @@ end
 ---@param brdTab any
 ---@param gTable any
 ---@param mtrxTab any
+---@param isFlipSpin boolean
 ---@return boolean
 ---@return integer
 ---@return integer
 ---@return integer
-function states.bRotate(plyVar, settings, tX, tY, d, bRot, bRotPrev, blkTab, brdTab, gTable, mtrxTab)
+function states.bRotate(plyVar, settings, tX, tY, d, bRot, bRotPrev, blkTab, brdTab, gTable, mtrxTab, isFlipSpin)
     -- TODO: Fix wrong wallkicks
     if settings.rotSys == "ARS" then
         if blkTab[plyVar.currBlk] ~= nil then
@@ -208,24 +210,41 @@ function states.bRotate(plyVar, settings, tX, tY, d, bRot, bRotPrev, blkTab, brd
         end
     elseif settings.rotSys == "SRS" then
         local tR, tRPrev
-        if plyVar.currBlk ~= 1 and plyVar.currBlk ~= 6 then
-            tR, tRPrev = gTable.wKicks[1][bRot], gTable.wKicks[1][bRotPrev]
-        elseif plyVar.currBlk == 1 then
-            tR, tRPrev = gTable.wKicks[2][d][bRot], gTable.wKicks[2][d][bRotPrev]
-        elseif plyVar.currBlk == 6 then
-            tR, tRPrev = gTable.wKicks[3][bRot], gTable.wKicks[3][bRotPrev]
+
+        -- table values
+        if not isFlipSpin then
+            if plyVar.currBlk ~= 1 and plyVar.currBlk ~= 6 then
+                tR, tRPrev = gTable.wKicks[1][bRot], gTable.wKicks[1][bRotPrev]
+            elseif plyVar.currBlk == 1 then
+                tR, tRPrev = gTable.wKicks[2][d][bRot], gTable.wKicks[2][d][bRotPrev]
+            elseif plyVar.currBlk == 6 then
+                tR, tRPrev = gTable.wKicks[3][bRot], gTable.wKicks[3][bRotPrev]
+            end
+        else
+            if plyVar.currBlk ~= 1 or plyVar.currBlk ~= 6 then
+                tR, tRPrev = gTable.wKicks[4][bRot], gTable.wKicks[4][bRotPrev]
+            end
         end
 
         for t = 1, #tRPrev do
-            if plyVar.currBlk ~= 1 then
-                if states.bMove(plyVar, blkTab, brdTab, tX + (tRPrev[t][1] - tR[t][1]), tY - (tRPrev[t][2] - tR[t][2]), bRot, mtrxTab) then
-                    plyVar.lDTimer = 0
-                    return true, tX + (tRPrev[t][1] - tR[t][1]), tY - (tRPrev[t][2] - tR[t][2]), t
+            if not isFlipSpin then
+                if plyVar.currBlk ~= 1 then
+                    if states.bMove(plyVar, blkTab, brdTab, tX + (tRPrev[t][1] - tR[t][1]), tY - (tRPrev[t][2] - tR[t][2]), bRot, mtrxTab) then
+                        plyVar.lDTimer = 0
+                        return true, tX + (tRPrev[t][1] - tR[t][1]), tY - (tRPrev[t][2] - tR[t][2]), t
+                    end
+                else
+                    if states.bMove(plyVar, blkTab, brdTab, tX + tR[t][1], tY - tR[t][2], bRot, mtrxTab) then
+                        plyVar.lDTimer = 0
+                        return true, tX + tR[t][1], tY - tR[t][2], t
+                    end
                 end
             else
-                if states.bMove(plyVar, blkTab, brdTab, tX + tR[t][1], tY - tR[t][2], bRot, mtrxTab) then
-                    plyVar.lDTimer = 0
-                    return true, tX + tR[t][1], tY - tR[t][2], t
+                if plyVar.currBlk ~= 1 or plyVar.currBlk ~= 6 then
+                    if states.bMove(plyVar, blkTab, brdTab, tX + tR[t][1], tY - tR[t][2], bRot, mtrxTab) then
+                        plyVar.lDTimer = 0
+                        return true, tX + tR[t][1], tY - tR[t][2], t
+                    end
                 end
             end
         end
@@ -442,6 +461,7 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
             sts.nxtLines = sts.nxtLines + 10
         end
         sts.lineClr = 0
+        plyVar.spinReward = 0
         cAnim = false
         print("---------- cAnim: " .. tostring(cAnim) .. " ----------")
     else

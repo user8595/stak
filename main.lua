@@ -164,6 +164,20 @@ local gameBtns = {
         gCol.gray, { gCol.bg[1] + 0.1, gCol.bg[2] + 0.1, gCol.bg[3] + 0.1 }, gCol.yellow, gCol.white)
 }
 
+-- checks if a number is nan/not a number
+---@param x number
+---@return boolean
+function IsNan(x)
+    if type(x) == "number" then
+        if x ~= x then
+            return true
+        end
+    else
+        error("value must be number (value: " .. x .. ")" , 1)
+    end
+    return false
+end
+
 function love.load()
     lg.clear()
     lg.setColor(gCol.bg)
@@ -562,7 +576,8 @@ function love.update(dt)
     end
 
     -- pps display
-    stats.currPPS = (not game.isCountdown) and stats.stacks / stats.time or tonumber("0.00")
+    local nan = IsNan
+    stats.currPPS = (not nan(stats.stacks / stats.time)) and stats.stacks / stats.time or 0
 
     if not game.isPaused and not game.isPauseDelay and not game.isFail then
         if not game.isCountdown then
@@ -759,10 +774,10 @@ function love.update(dt)
                             end
                         else
                             -- dear god
-                            ply.arrTimer = ply.arrTimer + (1 / 60)
+                            ply.arrTimer = ply.arrTimer + dt
                         end
                     else
-                        ply.dasTimer = ply.dasTimer + (1 / 60)
+                        ply.dasTimer = ply.dasTimer + dt
                     end
                 else
                     ply.dasTimer = 0
