@@ -76,6 +76,11 @@ function initvars.gameInit(plyVar, sts, gameVar)
     tClear(sts.lClearUI)
     tClear(sts.lClearAftrImg)
     tClear(sts.lClearUITxt)
+    tClear(sts.lkEfct)
+    tClear(sts.lEffect)
+    tClear(sts.lPart)
+    tClear(sts.clearedLinesYPos)
+    tClear(sts.hDEfct)
 end
 
 function initvars.mtrxClr(mtrxTab)

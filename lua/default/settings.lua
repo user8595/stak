@@ -12,6 +12,7 @@ local settings = {
     -- danger block from hold queue
     showHoldDgr = true,
     showKOverlay = true,
+    aKOverPos = true,
     -- small timer text
     altTimerUI = true,
     qRestartTime = 0.4,

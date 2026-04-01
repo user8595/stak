@@ -108,12 +108,7 @@ local gColD = {
 
 local blocks = gTable.blocks.ars
 
-local overlays = require("lua.scenes.overlays")
-
-if arg[2] == "debug" then
-    table.insert(overlays, kOver.newKey(125, 60, "e", "E", gCol.gOutline, gCol.white))
-    table.insert(overlays, kOver.newKey(135, 40, "r", "S", gCol.gOutline, gCol.white))
-end
+local overlays = (not settings.aKOverPos) and require "lua.scenes.overlays"[1] or require "lua.scenes.overlays"[2]
 
 local cFStrk = cFlash.new(gCol.yellow, gCol.blue, .05)
 local cFCb = cFlash.new(gCol.yellow, gCol.white, .05)
@@ -173,7 +168,7 @@ function IsNan(x)
             return true
         end
     else
-        error("value must be number (value: " .. x .. ")" , 1)
+        error("value must be number (value: " .. x .. ")", 1)
     end
     return false
 end
@@ -349,6 +344,11 @@ function love.keypressed(k)
             else
                 settings.altTimerUI = false
             end
+        end
+
+        if k == "y" then
+            settings.aKOverPos = (not settings.aKOverPos) and true or false
+            overlays = (not settings.aKOverPos) and require "lua.scenes.overlays"[1] or require "lua.scenes.overlays"[2]
         end
 
         if k == "f7" then
@@ -586,8 +586,6 @@ function love.update(dt)
             -- flip update
             states.flipStateUpd(ply)
 
-            kOver.updKey(overlays)
-
             if stats.finK > 2 then
                 stats.finesse = stats.finesse + 1
                 stats.finK = 0
@@ -731,6 +729,9 @@ function love.update(dt)
             cFlash.upd(cFAC, dt)
             cFlash.upd(cFSpn, dt)
         end
+
+        -- key overlays
+        kOver.updKey(overlays)
 
         -- ingame function
         if not ply.isLnDly and not ply.isEnDly then
@@ -1138,6 +1139,13 @@ function love.draw()
         gfx.bGhost(true, ply, blocks, gMtrx, states, gBoard, settings, game)
     end
 
+    lg.push()
+    lg.translate((not settings.isDebug) and -155 or -175, (gBoard.h - 2) * gBoard.visH)
+    if not game.isPaused and settings.aKOverPos then
+        kOver.drwKey(overlays, true)
+    end
+    lg.pop()
+
     -- pause delay screen
     if game.isPauseDelay then
         local pbCol = function(isAlpha, isInner)
@@ -1224,8 +1232,8 @@ function love.draw()
         lg.rectangle("fill", 0, wHg - 5, wWd, 5)
     else
         -- key overlay
-        if settings.showKOverlay then
-            kOver.drwKey(overlays)
+        if settings.showKOverlay and not settings.aKOverPos then
+            kOver.drwKey(overlays, false)
         end
     end
 
