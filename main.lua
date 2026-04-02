@@ -520,7 +520,7 @@ function love.update(dt)
     if stats.line >= 40 and not game.is40LClr then
         tInfo.new(textInfo,
             "40 lines clear! (" ..
-            stats.timeDisp .. ", " .. string.format("%.2f", stats.currPPS) .. " pps)", 0, wHg - 30, true,
+            stats.timeDisp .. ", " .. string.format("%.2f", stats.currPPS) .. " pps, " .. stats.finesse .. "F)", 0, wHg - 30, true,
             gCol.yellow, 1, 4)
         if records.bestSpr.time <= 0 then
             game.isHScore = true
@@ -1141,7 +1141,7 @@ function love.draw()
 
     lg.push()
     lg.translate((not settings.isDebug) and -155 or -175, (gBoard.h - 2) * gBoard.visH)
-    if not game.isPaused and settings.aKOverPos then
+    if not game.isPaused and settings.showKOverlay and settings.aKOverPos then
         kOver.drwKey(overlays, true)
     end
     lg.pop()
