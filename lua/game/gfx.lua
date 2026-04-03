@@ -658,21 +658,21 @@ function gfx.dPStats(xOff, yOff, wWd, wHg, stats, records, fonts, isRecords)
         lg.printf(
             { gCol.green, "sg: ", gCol.white, stats.clr.sgl, gCol.purple, " dbl: ", gCol.white, stats.clr.dbl, gCol
                 .yellow,
-                " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.white,
-                "   |  ", gCol.orange, " all clear: ", gCol.white, stats.clr.ac, gCol.purple, " t-spin: ", gCol
+                " trp: ", gCol.white, stats.clr.trp, gCol.lBlue, " qd: ", gCol.white, stats.clr.qd, gCol.gray,
+                " | ", gCol.orange, "all clear: ", gCol.white, stats.clr.ac, gCol.purple, " t-spin: ", gCol
                 .white,
                 stats
                 .spinT .. ", " .. stats.clr.spinTS .. ", " .. stats.clr.spinTD .. ", " .. stats.clr.spinTT, gCol.red,
                 " comb. ",
                 gCol.orange,
                 "&", gCol.purple, " strk: ", gCol.white, "x" ..
-            stats.maxComb .. ", x" .. stats.maxStrk .. "  |  ", gCol.yellow, "p/s.: ", gCol.white,
+            stats.maxComb .. ", x" .. stats.maxStrk, gCol.gray, " | ", gCol.yellow, "p/s.: ", gCol.white,
                 string.format("%.2f", stats.maxPPS) .. " p/s, " .. stats.finesse .. "F" }, fonts.othr, 0 + xOff,
             wHg - 30 + yOff, wWd, "center")
     else
         lg.printf(
             { gCol.yellow, "best spr.: ", gCol.white, initvars.dTime(records.bestSpr.time) .. ", ",
-                string.format("%.2f p/s | ", records.bestSpr.pps) ..
+                string.format("%.2f p/s", records.bestSpr.pps), gCol.gray, " | ", gCol.white,
                 string.format("%.2f p/s, ", records.bestSpr.maxpps) .. records.bestSpr.finesse .. "F" },
             fonts.othr, 0 + xOff, (wHg - yBestOff) + yOff, wWd, "center")
 
@@ -682,7 +682,7 @@ function gfx.dPStats(xOff, yOff, wWd, wHg, stats, records, fonts, isRecords)
                 ", lv. " .. records.bestScore.lv .. ", "
                 .. records.bestScore.line .. " ln., " .. initvars.dTime(records.bestScore.time) .. ", "
                 ..
-                string.format("%.2f p/s | ", records.bestScore.pps) ..
+                string.format("%.2f p/s", records.bestScore.pps), gCol.gray, " | ", gCol.white,
                 string.format("%.2f p/s, ", records.bestScore.maxpps) .. records.bestScore.finesse .. "F" },
             fonts.othr, 0 + xOff,
             (wHg - yBestOff + 15) + yOff,

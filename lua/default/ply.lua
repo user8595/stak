@@ -30,7 +30,7 @@ local ply = {
     arr = 1 / 1000,
     arrTimer = 0,
     -- soft drop speed
-    sdr = 5 / 1000,
+    sdr = 4 / 1000,
     sdrTimer = 0,
 
     -- lock delay

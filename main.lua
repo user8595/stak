@@ -202,7 +202,7 @@ function love.load()
     states.bagInit(ply, settings)
     states.addHistory(ply, settings)
 
-    -- load scores table & value compariasion
+    -- load scores table & value comparison
     local saveF = save.readScores(records)
     local pair = pairs
     for k, _ in pair(records) do
@@ -520,7 +520,8 @@ function love.update(dt)
     if stats.line >= 40 and not game.is40LClr then
         tInfo.new(textInfo,
             "40 lines clear! (" ..
-            stats.timeDisp .. ", " .. string.format("%.2f", stats.currPPS) .. " pps, " .. stats.finesse .. "F)", 0, wHg - 30, true,
+            stats.timeDisp .. ", " .. string.format("%.2f", stats.currPPS) .. " pps, " .. stats.finesse .. "F)", 0,
+            wHg - 30, true,
             gCol.yellow, 1, 4)
         if records.bestSpr.time <= 0 then
             game.isHScore = true
@@ -735,87 +736,10 @@ function love.update(dt)
 
         -- ingame function
         if not ply.isLnDly and not ply.isEnDly then
-            -- game movement function
-            if not ply.isHDrop then
-                if lk.isDown(keys.left) or lk.isDown(keys.right) then
-                    if ply.dasTimer > ply.das then
-                        if ply.arrTimer > ply.arr then
-                            if lk.isDown(keys.left) then
-                                if states.bMove(ply, blocks, gBoard, ply.x - 1, ply.y, ply.bRot, gMtrx) then
-                                    if not game.isCountdown then
-                                        ply.x = ply.x - 1
-
-                                        if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                                            states.addMoves(ply, game, true)
-                                            if settings.rotSys == "SRS" then
-                                                ply.lDTimer = 0
-                                            end
-                                        end
-                                    end
-                                    if ply.arrTimer > 0 then
-                                        ply.arrTimer = ply.arrTimer - ply.arr
-                                    end
-                                end
-                            end
-                            if lk.isDown(keys.right) then
-                                if states.bMove(ply, blocks, gBoard, ply.x + 1, ply.y, ply.bRot, gMtrx) then
-                                    if not game.isCountdown then
-                                        ply.x = ply.x + 1
-                                        if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                                            states.addMoves(ply, game, true)
-                                            if settings.rotSys == "SRS" then
-                                                ply.lDTimer = 0
-                                            end
-                                        end
-                                    end
-                                    if ply.arrTimer > 0 then
-                                        ply.arrTimer = ply.arrTimer - ply.arr
-                                    end
-                                end
-                            end
-                        else
-                            -- dear god
-                            ply.arrTimer = ply.arrTimer + dt
-                        end
-                    else
-                        ply.dasTimer = ply.dasTimer + dt
-                    end
-                else
-                    ply.dasTimer = 0
-                    ply.arrTimer = 0
-                end
-            end
+            ctrl.shiftBlk(ply, blocks, gBoard, gMtrx, settings, keys, dt)
 
             -- soft drop
-            if lk.isDown(keys.sDrop) then
-                if ply.sdrTimer > ply.sdr then
-                    if states.bMove(ply, blocks, gBoard, ply.x, ply.y + 1, ply.bRot, gMtrx) then
-                        if not game.isCountdown then
-                            ply.y = ply.y + 1
-                            stats.scr = stats.scr + 1
-                        end
-                        if ply.sdrTimer > ply.sdr and ply.sdrTimer > 0 then
-                            ply.sdrTimer = ply.sdrTimer - ply.sdr
-                        end
-                    else
-                        if not game.useSonicDrop then
-                            if ply.gTimer < ply.grav then
-                                ply.gTimer = ply.grav
-                            end
-                        else
-                            if ply.lDTimer < ply.lDelay then
-                                ply.lDTimer = ply.lDelay
-                            end
-                        end
-                    end
-                else
-                    ply.sdrTimer = ply.sdrTimer + dt
-                end
-            else
-                if states.bMove(ply, blocks, gBoard, ply.x, ply.y + 1, ply.bRot, gMtrx) then
-                    ply.sdrTimer = 0
-                end
-            end
+            ctrl.sDropRepeat(ply, stats, gBoard, gMtrx, keys, blocks, dt)
 
             -- gravity function
             if not game.isCountdown then

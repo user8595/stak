@@ -98,6 +98,21 @@ function states.lowestCells(plyVar, mtrxTab, blkTab, gBoard)
     return tY
 end
 
+---returns the furthest horizontal position of the current block, where 'd' is -1 | 1
+---@param d -1 | 1
+---@param plyVar table
+---@param mtrxTab table
+---@param blkTab table
+---@param gBoard table
+---@return number
+function states.quickMove(d, plyVar, mtrxTab, blkTab, gBoard)
+    local tX, tY = plyVar.x, plyVar.y
+    while states.bMove(plyVar, blkTab, gBoard, (d == 1) and tX + 1 or tX - 1, tY, plyVar.bRot, mtrxTab) do
+        tX = (d == 1) and tX + 1 or tX - 1
+    end
+    return tX
+end
+
 -- line clear function
 ---@param y number
 ---@param mtrxTab table
