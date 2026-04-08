@@ -445,6 +445,8 @@ function gfx.dDangerBlk(blkTab, mtrxTab, plyVar, game, states, tex, gBoard, sett
 end
 
 -- line clear ui effect
+--TODO: Improve line clear drawing by starting x & y pos. at 0, then use translate() for positioning
+-- which in turn, makes yOffSpd unnecesary (?)
 ---@param lClearTab table
 ---@param fonts table
 ---@param gTable table

@@ -227,6 +227,7 @@ function states.bRotate(plyVar, settings, tX, tY, d, bRot, bRotPrev, blkTab, brd
         local tR, tRPrev
 
         -- table values
+        --TODO: Refactor wallkicks handling (how the game handles it)
         if not isFlipSpin then
             if plyVar.currBlk ~= 1 and plyVar.currBlk ~= 6 then
                 tR, tRPrev = gTable.wKicks[1][bRot], gTable.wKicks[1][bRotPrev]
@@ -272,7 +273,6 @@ end
 function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
     local clear = true
     local cAnim = false
-    local isStack = false
 
     if bL[plyVar.currBlk][plyVar.bRot] ~= nil then
         for y, _ in ipairs(bL[plyVar.currBlk][plyVar.bRot]) do
@@ -280,7 +280,6 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
                 if blk ~= 0 then
                     if bY + y <= #mtrxTab then
                         mtrxTab[bY + y][bX + x] = blk
-                        isStack = true
                     end
                 end
             end
@@ -291,10 +290,8 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
             plyVar.currBlk .. " bRot: " .. plyVar.bRot .. " x: " .. plyVar.x .. " y: " .. plyVar.y .. " !!!")
     end
 
-    if isStack then
-        sts.stacks = sts.stacks + 1
-        isStack = false
-    end
+    plyVar.isShakeY = true
+    sts.stacks = sts.stacks + 1
 
     -- for line clear function
     for y = 1, brdTab.visH do
@@ -326,6 +323,8 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
             clear = false
         end
     end
+
+    plyVar.lineClrTemp = sts.lineClr
 
     if settings.lockEffect then
         effect.newLockEffect(sts.lkEfct, bL, plyVar, false)
@@ -482,6 +481,62 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
     else
         -- reset combo counter if no line clears
         sts.comb = 0
+    end
+end
+
+-- gravity function
+function states.gravUpd(ply, gMtrx, blocks, gBoard, settings, stats, dt)
+    if not game.isCountdown then
+        local yInc = 1 + gTable.gravMult[ply.gMult]
+        local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
+        local yGap = lowestY - ply.y
+        if ply.gTimer < ply.grav and ply.y ~= lowestY and not game.isInstantGrav then
+            if not ply.isHDrop and not game.noGrav then
+                ply.gTimer = ply.gTimer + dt
+                ply.lDTimer = 0
+            end
+            ply.isAlrRot = false
+        else
+            if not ply.isHDrop then
+                ply.gTimer = 0
+            end
+            if ply.y ~= lowestY then
+                if not game.noGrav then
+                    if yGap >= yInc and not game.isInstantGrav then
+                        ply.y = ply.y + yInc
+                    else
+                        ply.y = lowestY
+                    end
+                end
+                ply.lDTimer = 0
+            else
+                -- lock piece if player reached move limit
+                if ply.moveR > ply.mRLimit or ply.moveRBlk > ply.mRBLimit then
+                    if not ply.isHDrop then
+                        ply.lDTimer = 0
+                        states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
+                        if not game.isFail then
+                            initvars.plyInit(ply)
+                            ply.isEnDly = true
+                        end
+                        ply.moveR = 0
+                    end
+                else
+                    if not ply.isHDrop then
+                        if ply.lDTimer < ply.lDelay then
+                            ply.lDTimer = ply.lDTimer + dt
+                        else
+                            states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
+
+                            if not game.isFail then
+                                initvars.plyInit(ply)
+                                ply.isEnDly = true
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end
 end
 
@@ -743,7 +798,7 @@ end
 
 -- danger zone (near failure) check
 function states.dangerCheck(mtrxTab, gBoard)
-    local dangerY = 8 -- offset by -2, then 8 == 6 from first row
+    local dangerY = 9 -- offset by -2, then 9 == 7 from first row
     for y, _ in ipairs(mtrxTab) do
         for x, _ in ipairs(mtrxTab[y]) do
             if x > math.floor(gBoard.visW / 6) and x < gBoard.visW - (math.floor(gBoard.visW / 6)) then

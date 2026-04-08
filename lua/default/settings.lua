@@ -5,10 +5,23 @@ local settings = {
     hDropEffect = true,
     coloredHDropEffect = true,
     perspBlocks = true,
+    --TODO: Finish all spin support
+    detectAllSpin = false,
+    --TODO: Fix broken smooth fall effect
+    -- unimplemented now
+    smoothFall = false,
+    
+    -- accessibility features
+    shakeInt = 1, -- preferrably values ranged at 0 - 1.49
+    disableColorFlashes = false,
+    disableAftrImg = false,
+    disablePPSCol = false,
     lineEffect = true,
     lineParticles = true,
     lockEffect = true,
+    shakeBoard = true,
     showDanger = true,
+    
     -- danger block from hold queue
     showHoldDgr = true,
     showKOverlay = true,

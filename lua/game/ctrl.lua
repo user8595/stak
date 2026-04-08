@@ -55,8 +55,7 @@ function ctrl.shiftBlk(ply, blocks, gBoard, gMtrx, settings, keys, dt)
                                 end
                             end
                         else
-                            local x = states.quickMove(-1, ply, gMtrx, blocks, gBoard)
-                            ply.x = x
+                            ply.x = states.quickMove(-1, ply, gMtrx, blocks, gBoard)
                         end
                     end
                     if lk.isDown(keys.right) then
@@ -76,8 +75,7 @@ function ctrl.shiftBlk(ply, blocks, gBoard, gMtrx, settings, keys, dt)
                                 end
                             end
                         else
-                            local x = states.quickMove(1, ply, gMtrx, blocks, gBoard)
-                            ply.x = x
+                            ply.x = states.quickMove(1, ply, gMtrx, blocks, gBoard)
                         end
                     end
                 else
@@ -128,7 +126,7 @@ end
 ---@param keys table
 ---@param blocks table
 ---@param dt integer
-function ctrl.sDropRepeat(ply, stats, gBoard, gMtrx, keys, blocks, dt)
+function ctrl.sDropRepeat(ply, stats, game, gBoard, gMtrx, keys, blocks, dt)
     if lk.isDown(keys.sDrop) then
         if ply.sdrTimer > ply.sdr and ply.sdr > 0 then
             if states.bMove(ply, blocks, gBoard, ply.x, ply.y + 1, ply.bRot, gMtrx) then
@@ -151,7 +149,7 @@ function ctrl.sDropRepeat(ply, stats, gBoard, gMtrx, keys, blocks, dt)
                 end
             end
         else
-            if ply.sdr <= 0 then
+            if ply.sdr <= 0 and not game.isCountdown then
                 local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
                 ply.y = lowestY
             end
@@ -186,6 +184,8 @@ function ctrl.hDrop(ply, stats, blocks, gMtrx, gBoard, settings)
     if not game.useSonicDrop then
         states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
     end
+    --TODO: Finish board shake effect
+    ply.shakeYTime = 1
 
     ply.isHDrop = true
 

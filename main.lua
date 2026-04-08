@@ -117,8 +117,8 @@ local cFAC = cFlash.new(gColD.yellow, gColD.lBlue, .1)
 
 local cFSpn = cFlash.new(gColD.lBlue, gColD.purple, .1)
 
-local cFFail = cFlash.new(gCol.orange, gCol.red, .05)
-local cFFBG = cFlash.new(gColD.orange, gColD.red, .75)
+local cFFail = cFlash.new(gCol.red, gCol.orange, .05)
+local cFFBG = cFlash.new(gColD.red, gColD.orange, .75)
 
 -- pause buttons
 local pauseYOff = 70
@@ -196,6 +196,13 @@ function love.load()
         end
         tInfo.new(textInfo, "game might not work as expected in version than 11.5", 0, wHg - 50, true, gCol.yellow, 1,
             1.5)
+    end
+
+    if settings.shakeInt >= 1.5 then
+        tInfo.new(textInfo,
+            { gCol.yellow, "motion sickness warning!\n", gCol.orange, "(", gCol.red, "IMMEDIANTLY ", gCol.orange,
+                "stop playing if you feel uncomfortable)" }, 0, wHg - 50, true, nil, 1,
+            5)
     end
 
     -- initialize next queue
@@ -616,15 +623,16 @@ function love.update(dt)
 
             -- line delay function
             if ply.isLnDly then
-                -- the ultimate performance boost /j
-                local ipair = ipairs
+                if ply.isHDrop then
+                    ply.isHDrop = false
+                end
                 if ply.lnDlyTmr < ply.lnDly then
                     ply.lnDlyTmr = ply.lnDlyTmr + dt
                 else
                     print("shifted lines by -1 (lnDly: " .. ply.lnDly .. ")")
 
-                    for _, yPos in ipair(stats.clearedLinesYPos) do
-                        states.moveCells(yPos, gMtrx, gBoard)
+                    for yPos = 1, #stats.clearedLinesYPos do
+                        states.moveCells(stats.clearedLinesYPos[yPos], gMtrx, gBoard)
                     end
 
                     ply.isEnDly = true
@@ -641,6 +649,9 @@ function love.update(dt)
 
             -- entry delay (are)
             if ply.isEnDly then
+                if ply.isHDrop then
+                    ply.isHDrop = false
+                end
                 if ply.enDlyTmr < ply.enDly then
                     ply.enDlyTmr = ply.enDlyTmr + dt
                 else
@@ -648,16 +659,16 @@ function love.update(dt)
                     ply.isAlreadyHold = false
                     ply.isAlrRot = false
 
-                    -- only advance next queue bag after line & entry delay
+                    -- only advance next queue bag after entry delay
                     states.addHistory(ply, settings)
                     states.nextQueue(ply, settings)
 
-                    if settings.useIRS and ply.isIRS then
-                        initvars.checkIRS(ply, blocks, settings, game, keys)
-                    end
-
                     ply.enDlyTmr = 0
                     ply.isEnDly = false
+
+                    if settings.useIRS and ply.isIRS and ply.enDly > 0 then
+                        initvars.checkIRS(ply, blocks, settings, game, keys)
+                    end
                 end
             else
                 ply.enDlyTmr = 0
@@ -685,10 +696,6 @@ function love.update(dt)
                 if ply.dangerA > 0 then
                     ply.dangerA = ply.dangerA - dt * 0.5
                 end
-            end
-
-            if ply.isHDrop then
-                ply.isHDrop = false
             end
 
             for _, blk in ipairs(gMtrx) do
@@ -724,11 +731,13 @@ function love.update(dt)
             gfx.lClearUpd(stats.lClearAftrImg, dt)
 
             -- color flash update
-            cFlash.upd(cFStrk, dt)
-            cFlash.upd(cFGoal, dt)
-            cFlash.upd(cFCb, dt)
-            cFlash.upd(cFAC, dt)
-            cFlash.upd(cFSpn, dt)
+            if not settings.disableColorFlashes then
+                cFlash.upd(cFStrk, dt)
+                cFlash.upd(cFGoal, dt)
+                cFlash.upd(cFCb, dt)
+                cFlash.upd(cFAC, dt)
+                cFlash.upd(cFSpn, dt)
+            end
         end
 
         -- key overlays
@@ -739,63 +748,9 @@ function love.update(dt)
             ctrl.shiftBlk(ply, blocks, gBoard, gMtrx, settings, keys, dt)
 
             -- soft drop
-            ctrl.sDropRepeat(ply, stats, gBoard, gMtrx, keys, blocks, dt)
+            ctrl.sDropRepeat(ply, stats, game, gBoard, gMtrx, keys, blocks, dt)
 
-            -- gravity function
-            if not game.isCountdown then
-                local yInc = 1 + gTable.gravMult[ply.gMult]
-                local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
-                local yGap = lowestY - ply.y
-                if ply.gTimer < ply.grav and
-                    states.bMove(ply, blocks, gBoard, ply.x, ply.y + yInc, ply.bRot, gMtrx)
-                    and not game.isInstantGrav then
-                    if not ply.isHDrop and not game.noGrav then
-                        ply.gTimer = ply.gTimer + dt
-                        ply.lDTimer = 0
-                    end
-                    ply.isAlrRot = false
-                else
-                    if not ply.isHDrop then
-                        ply.gTimer = 0
-                    end
-                    if states.bMove(ply, blocks, gBoard, ply.x, ply.y + yInc, ply.bRot, gMtrx) then
-                        if not game.noGrav then
-                            if not game.isInstantGrav and not (yGap < yInc) then
-                                ply.y = ply.y + yInc
-                            end
-                        end
-                        ply.lDTimer = 0
-                    else
-                        ply.y = lowestY
-
-                        -- lock piece if player reached move limit
-                        if ply.moveR > ply.mRLimit or ply.moveRBlk > ply.mRBLimit then
-                            if not ply.isHDrop then
-                                ply.lDTimer = 0
-                                states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
-                                if not game.isFail then
-                                    initvars.plyInit(ply)
-                                    ply.isEnDly = true
-                                end
-                                ply.moveR = 0
-                            end
-                        else
-                            if not ply.isHDrop then
-                                if ply.lDTimer < ply.lDelay then
-                                    ply.lDTimer = ply.lDTimer + dt
-                                else
-                                    states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
-
-                                    if not game.isFail then
-                                        initvars.plyInit(ply)
-                                        ply.isEnDly = true
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
+            states.gravUpd(ply, gMtrx, blocks, gBoard, settings, stats, dt)
 
             -- secret grade check
             states.sgCheck(gMtrx, gBoard, stats)
@@ -811,7 +766,7 @@ function love.update(dt)
     if not game.isPaused and not game.isPauseDelay then
         -- game fail function
         if states.isGFail(ply, blocks, gBoard, gMtrx) and not ply.isLnDly and not ply.isEnDly then
-            if not game.isFail then
+            if not game.isFail and not settings.disableAftrImg then
                 effect.newLineEffect(nil, gBoard, stats.failEffect, true, true, gCol.red, 0.5, 2.5)
             end
 
@@ -843,8 +798,14 @@ function love.update(dt)
             initvars.plyInit(ply)
         end
 
+        if settings.shakeBoard then
+            effect.updShake(ply, settings, gBoard, dt)
+        end
+
         -- for fail text
-        cFlash.upd(cFFail, dt)
+        if not settings.disableColorFlashes then
+            cFlash.upd(cFFail, dt)
+        end
     end
 
     effect.lEUpdate(stats.failEffect, settings, dt)
@@ -865,8 +826,10 @@ function love.draw()
     lg.push()
     lg.scale(settings.scale, settings.scale)
     lg.translate(
-        (wWd / (2 * settings.scale)) - ((gBoard.w * gBoard.visW) / 2),
-        (wHg / (2 * settings.scale)) - ((gBoard.h * (gBoard.visH + 1)) / 2)
+        ((wWd / (2 * settings.scale)) - ((gBoard.w * gBoard.visW) / 2)) +
+        lerp.linear(0, (ply.sW / 3.5) * settings.scale, ply.shakeXTime),
+        ((wHg / (2 * settings.scale)) - ((gBoard.h * (gBoard.visH + 1)) / 2)) +
+        lerp.linear(0, (ply.sH / 3.5) * settings.scale, ply.shakeYTime)
     )
     lg.setLineWidth(1)
 
@@ -919,13 +882,21 @@ function love.draw()
         boardGoal.draw(game, stats.line, gBoard, gCol.yellow, cFGoal.col[cFGoal.index])
 
         -- current block
+        local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
         if not ply.isLnDly and not ply.isEnDly and not game.isCountdown then
-            gfx.dBPersp(blocks[ply.currBlk][ply.bRot], ply.x, ply.y, settings, ply, gBoard, game, true,
+            -- "motion sickness"
+            --TODO: Fix broken smooth fall effect
+            local bYPersp = (settings.smoothFall) and
+                lerp.linear(0, lowestY, (ply.y + (ply.gTimer / ply.grav)) / lowestY) or
+                ply.y
+            gfx.dBPersp(blocks[ply.currBlk][ply.bRot], ply.x, bYPersp, settings, ply, gBoard, game, true,
                 ply.lDTimer / ply.lDelay)
             for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
                 for x, blk in ipairs(blocks[ply.currBlk][ply.bRot][y]) do
+                    local bYMain = (settings.smoothFall) and
+                        lerp.linear(0, lowestY, (ply.y + (ply.gTimer / ply.grav)) / lowestY) or ply.y
                     if blk ~= 0 then
-                        gfx.dBlocks(blk, x + ply.x, y + ply.y, ply, gBoard, settings, game, false, false, false, true)
+                        gfx.dBlocks(blk, x + ply.x, y + bYMain, ply, gBoard, settings, game, false, false, false, true)
                     else
                         if settings.showEmpty then
                             gfx.dBlocks(blk, x + ply.x, y + ply.y, ply, gBoard, settings, game, false, false, false, true,
@@ -980,7 +951,7 @@ function love.draw()
         lg.printf(stats.scr, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 2.65), 1200, "left")
     end
 
-    gStyle.failCol(game, stats, gCol, true, false)
+    gStyle.failCol(game, stats, gCol, not settings.disablePPSCol, false)
     lg.printf(string.format("%.2f p/s", stats.currPPS), fonts.othr, -1200, gBoard.h * (gBoard.visH - 1.135),
         1200 - 20,
         "right")
@@ -1031,7 +1002,9 @@ function love.draw()
     -- line clear ui effects
     gfx.lClearDrw(stats.lClearUI, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn)
     gfx.lClearDrw(stats.lClearUITxt, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn)
-    gfx.lClearDrw(stats.lClearAftrImg, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn, true)
+    if not settings.disableAftrImg then
+        gfx.lClearDrw(stats.lClearAftrImg, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn, true)
+    end
 
     -- combo & streak ui
     if stats.strk > 1 then
@@ -1064,7 +1037,7 @@ function love.draw()
     end
 
     lg.push()
-    lg.translate((not settings.isDebug) and -155 or -175, (gBoard.h - 2) * gBoard.visH)
+    lg.translate((not settings.isDebug and arg[2] ~= "debug") and -155 or -175, (gBoard.h - 2) * gBoard.visH)
     if not game.isPaused and settings.showKOverlay and settings.aKOverPos then
         kOver.drwKey(overlays, true)
     end
@@ -1213,6 +1186,12 @@ function love.draw()
                 " MB" ..
                 "\nsc: " ..
                 settings.scale ..
+                "\nshake: " ..
+                ply.shakeXTime ..
+                " / " ..
+                ply.shakeYTime ..
+                " | " .. tostring(ply.isShakeX) .. "/" .. tostring(ply.isShakeY) .. "\nsH: " .. ply.sH ..
+                "\nlineClrTemp: " .. ply.lineClrTemp ..
                 "\nlEffect: " ..
                 #stats.lEffect ..
                 "\nlkEfct: " ..
@@ -1221,6 +1200,14 @@ function love.draw()
                 tostring(game.useHold) .. "\nisHScore: " .. tostring(game.isHScore) ..
                 "\nlowestCells: " ..
                 states.lowestCells(ply, gMtrx, blocks, gBoard) ..
+                "\nyGap: " ..
+                states.lowestCells(ply, gMtrx, blocks, gBoard) - ply.y .. " | " .. 1 + gTable.gravMult[ply.gMult] ..
+                " (" ..
+                tostring(states.lowestCells(ply, gMtrx, blocks, gBoard) - ply.y >= 1 + gTable.gravMult[ply.gMult]) ..
+                ")" ..
+                "\nquickMove: " ..
+                states.quickMove(-1, ply, gMtrx, blocks, gBoard) ..
+                " / " .. states.quickMove(1, ply, gMtrx, blocks, gBoard) ..
                 "\nnext: " ..
                 table.concat(ply.next, " ,") ..
                 "\nnHist: " ..

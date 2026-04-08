@@ -132,7 +132,7 @@ function effect.lEUpdate(lineEffectTab, settings, dt)
                     ln.a = ln.a - dt * 5
                 end
             end
-            
+
             if ln.isScale then
                 ln.s = ln.s + dt * lerp.easeOutQuart(50, 0, ln.a)
             end
@@ -245,6 +245,39 @@ function effect.hDDrw(lockEffectTab, plyVar, brdVar, settings, game)
                         end
                     end
                 end
+            end
+        end
+    end
+end
+
+--TODO: Implement board shake on x axis
+---board shake effect function
+---@param plyVar table
+---@param dt number
+function effect.updShake(plyVar, settings, gBoard, dt)
+    local hMult = {
+        gBoard.h * settings.shakeInt,
+        gBoard.h + ((plyVar.isHDrop) and 50 or 25 * settings.shakeInt),
+        gBoard.h + ((plyVar.isHDrop) and 75 or 50 * settings.shakeInt),
+        gBoard.h + ((plyVar.isHDrop) and 125 or 85 * settings.shakeInt),
+        gBoard.h + ((plyVar.isHDrop) and 180 or 125 * settings.shakeInt),
+    }
+
+    if plyVar.isShakeY then
+        plyVar.sH = hMult[plyVar.lineClrTemp + 1]
+        if not plyVar.sYInv then
+            if plyVar.shakeYTime < 1 then
+                plyVar.shakeYTime = plyVar.shakeYTime + dt * lmth.random(10, 11)
+            else
+                plyVar.sYInv = true
+            end
+        else
+            if plyVar.shakeYTime > 0 then
+                plyVar.shakeYTime = plyVar.shakeYTime - dt * lmth.random(4, 8)
+            else
+                plyVar.shakeYTime = 0
+                plyVar.sYInv = false
+                plyVar.isShakeY = false
             end
         end
     end

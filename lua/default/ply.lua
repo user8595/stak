@@ -1,4 +1,5 @@
-local gTable = require("lua.tables")
+local gTable = require "lua.tables"
+local gBoard = require "lua.default.gBoard"
 
 local ply = {
     x = 3,
@@ -7,11 +8,11 @@ local ply = {
     initY = 0,
     currBlk = 1,
     bRot = 1,
-    
+
     -- unused values for now
-    d = 1, -- 1: ccw, 2: cw
-    flipD = 1, -- 1: ccw (1, 4), 2: cw (2, 3)
-    
+    d = 1,          -- 1: ccw, 2: cw
+    flipD = 1,      -- 1: ccw (1, 4), 2: cw (2, 3)
+
     spinReward = 1, -- 0: no spin, 1: mini spins, 2: normal spins
     next = {},
     nHist = {},
@@ -19,18 +20,20 @@ local ply = {
     hold = 0,
     -- tempoary value for hold func.
     cBlkTemp = 0,
+    -- tempoary value for shake effect
+    lineClrTemp = 0,
     isAlreadyHold = false,
     isAlrRot = false,
 
-    -- in milliseconds
+    -- in milliseconds (0.1 = 100ms)
     -- delay before autorepeat
     das = 102 / 1000,
     dasTimer = 0,
     -- auto repeat duration delay
-    arr = 1 / 1000,
+    arr = 5 / 1000,
     arrTimer = 0,
     -- soft drop speed
-    sdr = 4 / 1000,
+    sdr = 5 / 1000,
     sdrTimer = 0,
 
     -- lock delay
@@ -60,6 +63,24 @@ local ply = {
 
     isHDrop = false,
     dangerA = 0,
+
+    -- board shake tween effect
+    --TODO: Add tweening on spins
+    isShakeX = false,
+    isShakeY = false,
+    isShakeRot = false,
+
+    sXInv = false,
+    sYInv = false,
+    sRInv = false,
+
+    shakeXTime = 0,
+    shakeYTime = 0,
+    shakeRTime = 0,
+
+    -- for shake length
+    sW = gBoard.w,
+    sH = gBoard.h
 
     -- use two separate values for current block & placed blocks
     -- if block > height or active block > placed block = add block to placed blocks
