@@ -17,7 +17,7 @@ function countdown.update(ply, blkTab, settings, game, keys, dt)
             if game.cTimer < game.cTarget then
                 game.cTimer = game.cTimer + dt
             else
-                states.initBlk(ply, settings)
+                states.initBlk(ply)
                 initvars.checkIRS(ply, blkTab, settings, game, keys)
                 game.isCountdown = false
             end

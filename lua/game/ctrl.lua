@@ -3,11 +3,45 @@ local effect = require "lua.game.effect"
 local game = require "lua.default.game"
 local initvars = require "lua.game.initvars"
 local gTable = require "lua.tables"
+local stg = require "lua.default.settings"
+
 local lk = love.keyboard
 local ctrl = {}
 
+--- arr function
+---@param d any -1 | 1
+---@param ply table
+---@param blocks table
+---@param gBoard table
+---@param gMtrx table
+---@param settings table
+---@param game table
+local function arrRpt(d, ply, blocks, gBoard, gMtrx, settings, game)
+    if ply.arr > 0 then
+        if states.bMove(ply, blocks, gBoard, ply.x + d, ply.y, ply.bRot, gMtrx) then
+            if not game.isCountdown then
+                ply.x = ply.x + d
+
+                if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
+                    states.addMoves(ply, game, true)
+                    if settings.rotSys == "SRS" then
+                        ply.lDTimer = 0
+                    end
+                end
+            end
+            if ply.arrTimer > 0 then
+                ply.arrTimer = ply.arrTimer - ply.arr
+            end
+        end
+    else
+        if not game.isCountdown then
+            ply.x = states.quickMove(d, ply, gMtrx, blocks, gBoard, game)
+        end
+    end
+end
+
 -- for "d" parameter: -1: ccw, 1: cw
----@param d number
+---@param d -1 | 1
 ---@param ply table
 ---@param stats table
 ---@param settings table
@@ -32,51 +66,24 @@ function ctrl.move(d, ply, stats, settings, blocks, gBoard, gMtrx)
 end
 
 -- game movement function
-function ctrl.shiftBlk(ply, blocks, gBoard, gMtrx, settings, keys, dt)
+---@param ply table
+---@param blocks table
+---@param gBoard table
+---@param gMtrx table
+---@param settings table
+---@param keys table
+---@param game table
+---@param dt number
+function ctrl.shiftBlk(ply, blocks, gBoard, gMtrx, settings, keys, game, dt)
     if not ply.isHDrop then
         if lk.isDown(keys.left) or lk.isDown(keys.right) then
             if ply.dasTimer > ply.das then
                 if ply.arrTimer > ply.arr then
                     if lk.isDown(keys.left) then
-                        if ply.arr > 0 then
-                            if states.bMove(ply, blocks, gBoard, ply.x - 1, ply.y, ply.bRot, gMtrx) then
-                                if not game.isCountdown then
-                                    ply.x = ply.x - 1
-
-                                    if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                                        states.addMoves(ply, game, true)
-                                        if settings.rotSys == "SRS" then
-                                            ply.lDTimer = 0
-                                        end
-                                    end
-                                end
-                                if ply.arrTimer > 0 then
-                                    ply.arrTimer = ply.arrTimer - ply.arr
-                                end
-                            end
-                        else
-                            ply.x = states.quickMove(-1, ply, gMtrx, blocks, gBoard)
-                        end
+                        arrRpt(-1, ply, blocks, gBoard, gMtrx, settings, game)
                     end
                     if lk.isDown(keys.right) then
-                        if ply.arr > 0 then
-                            if states.bMove(ply, blocks, gBoard, ply.x + 1, ply.y, ply.bRot, gMtrx) then
-                                if not game.isCountdown then
-                                    ply.x = ply.x + 1
-                                    if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
-                                        states.addMoves(ply, game, true)
-                                        if settings.rotSys == "SRS" then
-                                            ply.lDTimer = 0
-                                        end
-                                    end
-                                end
-                                if ply.arrTimer > 0 then
-                                    ply.arrTimer = ply.arrTimer - ply.arr
-                                end
-                            end
-                        else
-                            ply.x = states.quickMove(1, ply, gMtrx, blocks, gBoard)
-                        end
+                        arrRpt(1, ply, blocks, gBoard, gMtrx, settings, game)
                     end
                 else
                     -- dear god
@@ -180,16 +187,17 @@ function ctrl.hDrop(ply, stats, blocks, gMtrx, gBoard, settings)
     stats.scr = stats.scr + (2 * (hY - ply.y))
     ply.y = hY
 
-    -- ignore locking piece on sonic lock
-    if not game.useSonicDrop then
-        states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
-    end
     --TODO: Finish board shake effect
-    ply.shakeYTime = 1
-
-    ply.isHDrop = true
+    if stg.shakeDrop then
+        ply.shakeYTime = 1
+        ply.sYInv = true
+    end
 
     if not game.useSonicDrop then
+        -- ignore locking piece on sonic lock
+        states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
+
+        ply.isHDrop = true
         ply.arrTimer = 0
         ply.sdrTimer = 0
 
@@ -218,7 +226,7 @@ function ctrl.rot(d, ply, stats, blocks, settings, gBoard, gMtrx, isFlip)
 
     -- next rot.
     local tR = ply.bRot + d
-    -- prev rot.
+    -- prev rot. (used for 180 spins)
     local tRPrev = ply.bRot
 
     if not isFlip then
@@ -226,10 +234,12 @@ function ctrl.rot(d, ply, stats, blocks, settings, gBoard, gMtrx, isFlip)
             if tR < 1 then
                 tR = #blocks[ply.currBlk]
             end
+            ply.d = 1
         else
             if tR > #blocks[ply.currBlk] then
                 tR = 1
             end
+            ply.d = 2
         end
     else
         if settings.rotSys == "SRS" then
@@ -265,22 +275,16 @@ function ctrl.rot(d, ply, stats, blocks, settings, gBoard, gMtrx, isFlip)
 
     local bR, dx, dy, t
     if not isFlip then
-        bR, dx, dy, t = states.bRotate(ply, settings, ply.x, ply.y, ply.d, tR, tRPrev, blocks, gBoard, gTable,
+        bR, dx, dy, t = states.bRotate(ply, settings, ply.x, ply.y, ply.d, tR, blocks, gBoard, gTable,
             gMtrx, false)
     else
-        bR, dx, dy, t = states.bRotate(ply, settings, ply.x, ply.y, ply.d, tR, tRPrev, blocks, gBoard, gTable,
+        bR, dx, dy, t = states.bRotate(ply, settings, ply.x, ply.y, ply.d, tR, blocks, gBoard, gTable,
             gMtrx, true)
     end
 
-    if settings.rotSys ~= "SRS" then
-        if bR and states.bMove(ply, blocks, gBoard, ply.x, ply.y, tR, gMtrx) then
-            ply.bRot = tR
-        end
-    else
-        if bR then
-            ply.x, ply.y = dx, dy
-            ply.bRot = tR
-        end
+    if bR then
+        ply.x, ply.y = dx, dy
+        ply.bRot = tR
     end
 
     if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
@@ -300,7 +304,7 @@ end
 function ctrl.hold(ply, stats, settings)
     if not ply.isAlreadyHold and not ply.isLnDly and not ply.isEnDly then
         stats.finK = 0
-        states.holdFunc(ply, settings)
+        states.holdFunc(ply)
     end
 end
 

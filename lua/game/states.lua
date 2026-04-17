@@ -3,6 +3,7 @@ local lmth = love.math
 local tClear = require "lua.tClear"
 local effect = require "lua.game.effect"
 local game = require "lua.default.game"
+local stg = require "lua.default.settings"
 local gTable = require "lua.tables"
 local initvars = require "lua.game.initvars"
 
@@ -73,17 +74,6 @@ local function solidRows(mtrxTab, xInit, xEnd, y, steps)
     return true
 end
 
--- flip piece update function
----@param plyVar table
-function states.flipStateUpd(plyVar)
-    if plyVar.bRot == 1 or plyVar.bRot == 4 then
-        plyVar.flipD = 1
-    end
-    if plyVar.bRot == 2 or plyVar.bRot == 3 then
-        plyVar.flipD = 2
-    end
-end
-
 -- returns the lowest y-axis position for the current piece
 ---@param plyVar table
 ---@param mtrxTab table
@@ -98,17 +88,30 @@ function states.lowestCells(plyVar, mtrxTab, blkTab, gBoard)
     return tY
 end
 
----returns the furthest horizontal position of the current block, where 'd' is -1 | 1
+--- returns the furthest horizontal position of the current block, where 'd' is -1 | 1
 ---@param d -1 | 1
 ---@param plyVar table
 ---@param mtrxTab table
 ---@param blkTab table
 ---@param gBoard table
+---@param game table
 ---@return number
-function states.quickMove(d, plyVar, mtrxTab, blkTab, gBoard)
+function states.quickMove(d, plyVar, mtrxTab, blkTab, gBoard, game)
     local tX, tY = plyVar.x, plyVar.y
-    while states.bMove(plyVar, blkTab, gBoard, (d == 1) and tX + 1 or tX - 1, tY, plyVar.bRot, mtrxTab) do
-        tX = (d == 1) and tX + 1 or tX - 1
+    local lowestY = states.lowestCells(plyVar, mtrxTab, blkTab, gBoard)
+    local yGap = lowestY - tY
+    local gMult = gTable.gravMult[plyVar.gMult] + 1
+
+    if game.isInstantGrav or gMult > 1 or plyVar.grav <= 0 then
+        while states.bMove(plyVar, blkTab, gBoard, tX + d, tY, plyVar.bRot, mtrxTab)
+            -- this function is a for loop
+            and not states.bMove(plyVar, blkTab, gBoard, tX, tY + (yGap + 1), plyVar.bRot, mtrxTab) do
+            tX = tX + d
+        end
+    else
+        while states.bMove(plyVar, blkTab, gBoard, tX + d, tY, plyVar.bRot, mtrxTab) do
+            tX = tX + d
+        end
     end
     return tX
 end
@@ -151,6 +154,31 @@ function states.moveCells(y, mtrxTab, boardVar)
     end
 end
 
+--- adds lines to board
+---@param blk string | number | 0
+---@param x number
+---@param h number
+---@param mtrxTab table
+---@param gBoard table
+---@param ply table
+---@param blkTab table
+function states.addRows(blk, x, h, mtrxTab, gBoard, ply, blkTab)
+    for i = 1, h do
+        mtrxTab[#mtrxTab + 1] = {}
+        for xLn = 1, gBoard.visW do
+            if xLn ~= x then
+                mtrxTab[#mtrxTab][xLn] = blk
+            else
+                mtrxTab[#mtrxTab][xLn] = 0
+            end
+        end
+        table.remove(mtrxTab, 1)
+        if not states.bMove(ply, blkTab, gBoard, ply.x, ply.y, ply.bRot, mtrxTab) then
+            ply.y = ply.y - 1
+        end
+    end
+end
+
 ---@param plyVar table
 ---@param blkTab any
 ---@param brdTab any
@@ -188,7 +216,6 @@ end
 ---@param tY any
 ---@param d any
 ---@param bRot any
----@param bRotPrev any
 ---@param blkTab any
 ---@param brdTab any
 ---@param gTable any
@@ -198,19 +225,24 @@ end
 ---@return integer
 ---@return integer
 ---@return integer
-function states.bRotate(plyVar, settings, tX, tY, d, bRot, bRotPrev, blkTab, brdTab, gTable, mtrxTab, isFlipSpin)
-    -- TODO: Fix wrong wallkicks
+function states.bRotate(plyVar, settings, tX, tY, d, bRot, blkTab, brdTab, gTable, mtrxTab, isFlipSpin)
     if settings.rotSys == "ARS" then
         if blkTab[plyVar.currBlk] ~= nil then
             local bLen = blkTab[plyVar.currBlk]
             if #bLen > 1 then
                 if #bLen[bRot] <= 3 and bLen ~= 1 then -- not an O piece
-                    if plyVar.currBlk ~= 1 then        -- not an I piece
-                        if not states.bMove(plyVar, blkTab, brdTab, tX - 1, tY, bRot, mtrxTab) then
-                            plyVar.x = plyVar.x + 1
-                        end
-                        if not states.bMove(plyVar, blkTab, brdTab, tX + 1, tY, bRot, mtrxTab) then
-                            plyVar.x = plyVar.x - 1
+                    -- not an I piece
+                    if plyVar.currBlk ~= 1 then
+                        if not states.bMove(plyVar, blkTab, brdTab, tX, tY, bRot, mtrxTab) then
+                            -- right kick
+                            if states.bMove(plyVar, blkTab, brdTab, tX + 1, tY, bRot, mtrxTab) then
+                                return true, tX + 1, tY, 1
+                            end
+                            -- left kick
+                            if states.bMove(plyVar, blkTab, brdTab, tX - 1, tY, bRot, mtrxTab) then
+                                return true, tX - 1, tY, 1
+                            end
+                            return false, tX, tY, 1
                         end
                     else
                         if not states.bMove(plyVar, blkTab, brdTab, tX, tY, bRot, mtrxTab) then
@@ -220,48 +252,30 @@ function states.bRotate(plyVar, settings, tX, tY, d, bRot, bRotPrev, blkTab, brd
                 end
             end
             return true, tX, tY, 1
-        else
-            return false, tX, tY, 1
         end
+        return false, tX, tY, 1
     elseif settings.rotSys == "SRS" then
-        local tR, tRPrev
+        local tR
 
         -- table values
-        --TODO: Refactor wallkicks handling (how the game handles it)
         if not isFlipSpin then
             if plyVar.currBlk ~= 1 and plyVar.currBlk ~= 6 then
-                tR, tRPrev = gTable.wKicks[1][bRot], gTable.wKicks[1][bRotPrev]
+                tR = gTable.wKicks[1][d][bRot]
             elseif plyVar.currBlk == 1 then
-                tR, tRPrev = gTable.wKicks[2][d][bRot], gTable.wKicks[2][d][bRotPrev]
+                tR = gTable.wKicks[2][d][bRot]
             elseif plyVar.currBlk == 6 then
-                tR, tRPrev = gTable.wKicks[3][bRot], gTable.wKicks[3][bRotPrev]
+                tR = gTable.wKicks[3][bRot]
             end
         else
             if plyVar.currBlk ~= 1 or plyVar.currBlk ~= 6 then
-                tR, tRPrev = gTable.wKicks[4][bRot], gTable.wKicks[4][bRotPrev]
+                tR = gTable.wKicks[4][bRot]
             end
         end
 
-        for t = 1, #tRPrev do
-            if not isFlipSpin then
-                if plyVar.currBlk ~= 1 then
-                    if states.bMove(plyVar, blkTab, brdTab, tX + (tRPrev[t][1] - tR[t][1]), tY - (tRPrev[t][2] - tR[t][2]), bRot, mtrxTab) then
-                        plyVar.lDTimer = 0
-                        return true, tX + (tRPrev[t][1] - tR[t][1]), tY - (tRPrev[t][2] - tR[t][2]), t
-                    end
-                else
-                    if states.bMove(plyVar, blkTab, brdTab, tX + tR[t][1], tY - tR[t][2], bRot, mtrxTab) then
-                        plyVar.lDTimer = 0
-                        return true, tX + tR[t][1], tY - tR[t][2], t
-                    end
-                end
-            else
-                if plyVar.currBlk ~= 1 or plyVar.currBlk ~= 6 then
-                    if states.bMove(plyVar, blkTab, brdTab, tX + tR[t][1], tY - tR[t][2], bRot, mtrxTab) then
-                        plyVar.lDTimer = 0
-                        return true, tX + tR[t][1], tY - tR[t][2], t
-                    end
-                end
+        for t = 1, #tR do
+            if states.bMove(plyVar, blkTab, brdTab, tX + tR[t][1], tY - tR[t][2], bRot, mtrxTab) then
+                plyVar.lDTimer = 0
+                return true, tX + tR[t][1], tY - tR[t][2], t
             end
         end
         return false, tX, tY, 0
@@ -290,7 +304,14 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
             plyVar.currBlk .. " bRot: " .. plyVar.bRot .. " x: " .. plyVar.x .. " y: " .. plyVar.y .. " !!!")
     end
 
-    plyVar.isShakeY = true
+    if stg.shakeDrop then
+        plyVar.isShakeY = true
+    else
+        if plyVar.lineClrTemp > 1 then
+            plyVar.isShakeY = true
+        end
+    end
+
     sts.stacks = sts.stacks + 1
 
     -- for line clear function
@@ -330,6 +351,10 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
         effect.newLockEffect(sts.lkEfct, bL, plyVar, false)
     end
 
+    states.lineReward(cAnim, plyVar, sts, mtrxTab, brdTab, settings)
+end
+
+function states.lineReward(cAnim, plyVar, sts, mtrxTab, brdTab, settings)
     if cAnim then
         -- start line delay
         plyVar.isLnDly = true
@@ -607,7 +632,7 @@ function states.bagReset(plyVar, settings)
     states.addHistory(plyVar, settings)
 end
 
-function states.initBlk(plyVar, settings)
+function states.initBlk(plyVar)
     plyVar.currBlk = plyVar.next[1]
     table.remove(plyVar.next, 1)
 end
@@ -625,7 +650,7 @@ function states.nextQueue(plyVar, settings)
 end
 
 -- hold function
-function states.holdFunc(plyVar, settings)
+function states.holdFunc(plyVar)
     if plyVar.hold == 0 then
         plyVar.hold = plyVar.currBlk
         plyVar.currBlk = plyVar.next[1]
@@ -643,6 +668,8 @@ function states.holdFunc(plyVar, settings)
 end
 
 -- increment move reset counter
+--TODO: Improve move reset function
+-- with checking if the last move was from the lowest y axis via a boolean
 function states.addMoves(plyVar, game, isBMove)
     if not isBMove then
         if game.useMoveReset then
@@ -690,36 +717,12 @@ function states.isSpin(xOff, yOff, ply, blkTab, gBoard, mtrxTab, t)
         if (cellCheck(1) ~= 0 and cellCheck(2) ~= 0) and
             (cellCheck(3) ~= 0 or cellCheck(4) ~= 0)
             or t == 5 then
-            -- if cellCheck(1) ~= 0 then
-            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "T", xOff + cOff[1][1], yOff + cOff[1][2], 1)
-            -- end
-            -- if cellCheck(2) ~= 0 then
-            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "T", xOff + cOff[2][1], yOff + cOff[2][2], 1)
-            -- end
-            -- if cellCheck(3) ~= 0 then
-            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "T", xOff + cOff[3][1], yOff + cOff[3][2], 1)
-            -- end
-            -- if cellCheck(4) ~= 0 then
-            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "T", xOff + cOff[4][1], yOff + cOff[4][2], 1)
-            -- end
             return 2
         end
 
         -- mini spins
         if (cellCheck(1) ~= 0 or cellCheck(2) ~= 0) and
             (cellCheck(3) ~= 0 and cellCheck(4) ~= 0) then
-            -- if cellCheck(1) ~= 0 then
-            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "O", xOff + cOff[1][1], yOff + cOff[1][2], 1)
-            -- end
-            -- if cellCheck(2) ~= 0 then
-            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "O", xOff + cOff[2][1], yOff + cOff[2][2], 1)
-            -- end
-            -- if cellCheck(3) ~= 0 then
-            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "O", xOff + cOff[3][1], yOff + cOff[3][2], 1)
-            -- end
-            -- if cellCheck(4) ~= 0 then
-            --     effect.newLPart(sts.lPart, require "lua.default.gBoard", "O", xOff + cOff[4][1], yOff + cOff[4][2], 1)
-            -- end
             return 1
         end
     end
@@ -782,13 +785,18 @@ function states.sgCheck(mtrxTab, brdTab, sts)
                     sts.sGFill[xCl] = false
                 end
             elseif xCl == 20 then
-                if solidRows(mtrxTab, 3, brdTab.visW, brdTab.visH - (xCl - 1), 1)
-                    and (mtrxTab[brdTab.visH - (xCl - 1)][1] ~= 0
-                        and mtrxTab[brdTab.visH - (xCl - 1)][2] == 0) then
-                    sts.scrtG = xCl
-                    -- highest row
-                    sts.sGFill[xCl] = true
+                if sts.sGFill[xCl - 1] then
+                    if solidRows(mtrxTab, 3, brdTab.visW, brdTab.visH - (xCl - 1), 1)
+                        and (mtrxTab[brdTab.visH - (xCl - 1)][1] ~= 0
+                            and mtrxTab[brdTab.visH - (xCl - 1)][2] == 0) then
+                        sts.scrtG = xCl
+                        -- highest row
+                        sts.sGFill[xCl] = true
+                    else
+                        sts.sGFill[xCl] = false
+                    end
                 else
+                    -- reset values to false
                     sts.sGFill[xCl] = false
                 end
             end
@@ -798,7 +806,7 @@ end
 
 -- danger zone (near failure) check
 function states.dangerCheck(mtrxTab, gBoard)
-    local dangerY = 9 -- offset by -2, then 9 == 7 from first row
+    local dangerY = 8 -- offset by -2, then 8 == 6 from first row
     for y, _ in ipairs(mtrxTab) do
         for x, _ in ipairs(mtrxTab[y]) do
             if x > math.floor(gBoard.visW / 6) and x < gBoard.visW - (math.floor(gBoard.visW / 6)) then

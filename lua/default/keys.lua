@@ -5,8 +5,7 @@ local keys = {
     right = "d",
     cw = "l",
     ccw = "k",
-    -- equal to a 180 turn
-    --TODO: Implement 180 turns
+    -- equal to a 180 turn 
     flip = "j",
     hold = "space",
     pause = "p",

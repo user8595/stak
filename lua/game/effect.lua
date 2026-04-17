@@ -95,7 +95,7 @@ function effect.lPUpdate(lPartTab, settings, dt)
 end
 
 function effect.lPDrw(lPartTab, settings)
-    for i, lp in ipairs(lPartTab) do
+    for _, lp in ipairs(lPartTab) do
         local col, blnd = gTable.colTab.blk, .45
         if settings.rotSys ~= "ARS" then
             lg.setColor(
@@ -254,17 +254,22 @@ end
 ---board shake effect function
 ---@param plyVar table
 ---@param dt number
-function effect.updShake(plyVar, settings, gBoard, dt)
+function effect.updShake(plyVar, settings, game, gBoard, dt)
     local hMult = {
-        gBoard.h * settings.shakeInt,
-        gBoard.h + ((plyVar.isHDrop) and 50 or 25 * settings.shakeInt),
-        gBoard.h + ((plyVar.isHDrop) and 75 or 50 * settings.shakeInt),
-        gBoard.h + ((plyVar.isHDrop) and 125 or 85 * settings.shakeInt),
-        gBoard.h + ((plyVar.isHDrop) and 180 or 125 * settings.shakeInt),
+        (gBoard.visH / 2) * settings.shakeInt,
+        (gBoard.visH / 4) + ((plyVar.isHDrop) and 50 or 25 * settings.shakeInt),
+        (gBoard.visH / 4) + ((plyVar.isHDrop) and 75 or 50 * settings.shakeInt),
+        (gBoard.visH / 4) + ((plyVar.isHDrop) and 125 or 85 * settings.shakeInt),
+        (gBoard.visH / 4) + ((plyVar.isHDrop) and 180 or 125 * settings.shakeInt),
     }
 
     if plyVar.isShakeY then
-        plyVar.sH = hMult[plyVar.lineClrTemp + 1]
+        if hMult[plyVar.lineClrTemp + 1] ~= nil then
+            plyVar.sH = hMult[plyVar.lineClrTemp + 1]
+        else
+            plyVar.sH = hMult[1]
+        end
+        
         if not plyVar.sYInv then
             if plyVar.shakeYTime < 1 then
                 plyVar.shakeYTime = plyVar.shakeYTime + dt * lmth.random(10, 11)

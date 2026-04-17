@@ -9,9 +9,7 @@ local ply = {
     currBlk = 1,
     bRot = 1,
 
-    -- unused values for now
     d = 1,          -- 1: ccw, 2: cw
-    flipD = 1,      -- 1: ccw (1, 4), 2: cw (2, 3)
 
     spinReward = 1, -- 0: no spin, 1: mini spins, 2: normal spins
     next = {},
@@ -27,13 +25,18 @@ local ply = {
 
     -- in milliseconds (0.1 = 100ms)
     -- delay before autorepeat
-    das = 102 / 1000,
+    das = 95 / 1000,
     dasTimer = 0,
+
+    --TODO: Add cut delay
+    dcd = 0,
+    dcdTimer = 0,
+
     -- auto repeat duration delay
-    arr = 5 / 1000,
+    arr = 0 / 1000,
     arrTimer = 0,
     -- soft drop speed
-    sdr = 5 / 1000,
+    sdr = 0 / 1000,
     sdrTimer = 0,
 
     -- lock delay
@@ -43,11 +46,11 @@ local ply = {
     -- line clear delay
     isLnDly = false,
     lnDlyTmr = 0,
-    lnDly = 100 / 1000,
+    lnDly = 0 / 1000,
 
     isEnDly = false,
     enDlyTmr = 0,
-    enDly = 50 / 1000,
+    enDly = 0 / 1000,
 
     -- gravity
     gTimer = 0,
@@ -65,9 +68,9 @@ local ply = {
     dangerA = 0,
 
     -- board shake tween effect
-    --TODO: Add tweening on spins
     isShakeX = false,
     isShakeY = false,
+    --TODO: Add tweening on spins
     isShakeRot = false,
 
     sXInv = false,

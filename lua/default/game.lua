@@ -3,7 +3,6 @@ local game = {
     isPaused = false,
     isPauseDelay = false,
     
-    -- incomplete for now
     isCountdown = true,
     cTimer = 0,
     -- countdown length

@@ -35,6 +35,7 @@ function gfx.dBlocks(bl, x, y, plyVar, brdVar, settings, game, isGhost, isOutlin
                 J = gCol.blue,
                 O = gCol.yellow,
                 T = gCol.lBlue,
+                g = gCol.gray,
                 gO = gCol.gOutline
             }
         else
@@ -47,6 +48,7 @@ function gfx.dBlocks(bl, x, y, plyVar, brdVar, settings, game, isGhost, isOutlin
                 J = gCol.blue,
                 O = gCol.yellow,
                 T = gCol.purple,
+                g = gCol.gray,
                 gO = gCol.gOutline
             }
         end
@@ -297,8 +299,10 @@ end
 ---@param settings table
 ---@param gBoard table
 ---@param isHold boolean
-function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold)
+---@param noColors boolean
+function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold, noColors)
     local hBlk = plyTab.hold
+    local color = (noColors) and true or false
 
     if not game.isPaused then
         if not isHold then
@@ -317,7 +321,7 @@ function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold)
                                     lg.translate(0, 10)
                                 end
                                 gfx.dBlocks(blk, x + gBoard.visW + 1, y + 2 + (3 * (i - 1)), plyTab, gBoard, settings,
-                                    game, false, false, false)
+                                    game, false, false, color)
                                 lg.pop()
                             else
                                 lg.push()
@@ -329,7 +333,7 @@ function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold)
                                     lg.translate(0, -10)
                                 end
                                 gfx.dBlocks(blk, x + gBoard.visW + 1, y + 3 + (3 * (i - 1)), plyTab, gBoard, settings,
-                                    game, false, false, false)
+                                    game, false, false, color)
                                 lg.pop()
                             end
                         end
@@ -342,7 +346,9 @@ function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold)
                     for x, blk in ipairs(blkTab[hBlk][1][y]) do
                         if blk ~= 0 then
                             if plyTab.isAlreadyHold then
-                                lg.setColor(gCol.gOutline)
+                                if not noColors then
+                                    lg.setColor(gCol.gOutline)
+                                end
                                 if settings.rotSys == "ARS" then
                                     lg.push()
                                     if hBlk ~= 1 and
@@ -379,7 +385,7 @@ function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold)
                                         lg.translate(0, 10)
                                     end
                                     gfx.dBlocks(blk, x + gBoard.x - 5, y + 2, plyTab, gBoard, settings, game, false,
-                                        false, false)
+                                        false, color)
                                     lg.pop()
                                 else
                                     lg.push()
@@ -391,7 +397,7 @@ function gfx.dNBox(blkTab, plyTab, game, settings, gBoard, isHold)
                                         lg.translate(0, -10)
                                     end
                                     gfx.dBlocks(blk, x + gBoard.x - 5, y + 3, plyTab, gBoard, settings, game, false,
-                                        false, false)
+                                        false, color)
                                     lg.pop()
                                 end
                             end
@@ -702,6 +708,25 @@ function gfx.dLoad(str, fonts, wWd, wHg)
     lg.rectangle("fill", 0, wHg - 40, wWd, 40)
     lg.setColor(1, 1, 1, 1)
     lg.printf(str, fonts.othr, 0, wHg - 25, wWd - 20, "right")
+end
+
+---draws background
+---@param x number
+---@param y number
+---@param col1 table
+---@param col2 table
+---@param itrLen number
+---@param a number
+function gfx.drawBG(x, y, col1, col2, itrLen, a)
+    for i = 1, itrLen do
+        lg.setColor(
+            lerp.linear(col1[1], col2[1], (i / itrLen)),
+            lerp.linear(col1[2], col2[2], (i / itrLen)),
+            lerp.linear(col1[3], col2[3], (i / itrLen)),
+            a
+        )
+        lg.rectangle("fill", x, y + (lg.getHeight() / itrLen * (i - 1)), lg.getWidth(), lg.getHeight() / itrLen)
+    end
 end
 
 return gfx

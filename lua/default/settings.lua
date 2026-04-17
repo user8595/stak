@@ -1,16 +1,25 @@
+local gCol = require "lua.gCol"
 local settings = {
     showGrid = true,
     showOutlines = true,
+    perspBlocks = true,
     showGhost = true,
     hDropEffect = true,
     coloredHDropEffect = true,
-    perspBlocks = true,
     --TODO: Finish all spin support
     detectAllSpin = false,
     --TODO: Fix broken smooth fall effect
     -- unimplemented now
     smoothFall = false,
     
+    fpsTarget = 60,
+
+    bgFilter = 0.5,
+    bgCol = {
+        gCol.bgB,
+        gCol.bg,
+    },
+
     -- accessibility features
     shakeInt = 1, -- preferrably values ranged at 0 - 1.49
     disableColorFlashes = false,
@@ -20,6 +29,8 @@ local settings = {
     lineParticles = true,
     lockEffect = true,
     shakeBoard = true,
+    --TODO: Add function to disable locking shake effect
+    shakeDrop = true,
     showDanger = true,
     
     -- danger block from hold queue

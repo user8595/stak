@@ -42,6 +42,9 @@ local ctrl           = require "lua.game.ctrl"
 local boardGoal      = require "lua.scenes.boardGoal"
 local countdown      = require "lua.scenes.countdown"
 
+-- external libraries
+local tick           = require "libs.tick"
+
 local states         = require "lua.game.states"
 
 local fonts          = {
@@ -135,13 +138,7 @@ local pauseBtns = {
         gCol.bg, { gCol.bg[1] + 0.1, gCol.bg[2] + 0.1, gCol.bg[3] + 0.1 }, gCol.white, gCol.green, true),
     button.new("RESTART", fonts.ui, 0, 110 - pauseYOff, 120, 30,
         function()
-            game.isPaused = false
-            game.isFail = false
-            game.showFailColors = false
-            initvars.gameInit(ply, stats, game)
-            initvars.mtrxClr(gMtrx)
-            states.bagReset(ply, settings)
-            initvars.plyInit(ply)
+            initvars.restartGame(ply, game, stats, gMtrx, settings, states)
         end,
         gCol.bg, { gCol.bg[1] + 0.1, gCol.bg[2] + 0.1, gCol.bg[3] + 0.1 }, gCol.white, gCol.orange, true),
     button.new("QUIT", fonts.ui, 0, 150 - pauseYOff, 120, 30,
@@ -181,6 +178,9 @@ function love.load()
     lg.printf("Loading..", fonts.ui, 0, wHg / 2, wWd, "center")
     love.graphics.present()
 
+    -- for fixed time
+    tick.rate = 1 / settings.fpsTarget
+
     if ls.getOS() == "Android" or ls.getOS() == "iOS" then
         lw.setFullscreen(true)
         settings.scale = 0.9
@@ -194,7 +194,7 @@ function love.load()
         else
             tInfo.new(textInfo, "(current ver.: " .. mj .. "." .. mn .. ")", 0, wHg - 50, true, gCol.green, 1, 1.5)
         end
-        tInfo.new(textInfo, "game might not work as expected in version than 11.5", 0, wHg - 50, true, gCol.yellow, 1,
+        tInfo.new(textInfo, "game might not work as expected in versions than 11.5", 0, wHg - 50, true, gCol.yellow, 1,
             1.5)
     end
 
@@ -208,6 +208,7 @@ function love.load()
     -- initialize next queue
     states.bagInit(ply, settings)
     states.addHistory(ply, settings)
+    ply.currBlk = ply.next[1]
 
     -- load scores table & value comparison
     local saveF = save.readScores(records)
@@ -322,6 +323,9 @@ function love.keypressed(k)
 
         if k == keys.hDrop then
             ctrl.hDrop(ply, stats, blocks, gMtrx, gBoard, settings)
+            if ply.isHDrop then
+                ply.isHDrop = false
+            end
         end
 
         if k == keys.ccw then
@@ -343,14 +347,6 @@ function love.keypressed(k)
         -- hold key function
         if k == keys.hold and game.useHold then
             ctrl.hold(ply, stats, settings)
-        end
-
-        if k == "o" then
-            if not settings.altTimerUI then
-                settings.altTimerUI = true
-            else
-                settings.altTimerUI = false
-            end
         end
 
         if k == "y" then
@@ -375,12 +371,8 @@ function love.keypressed(k)
                 save.writeScores(records)
                 game.isLoading = false
             end
-            game.isFail = false
-            game.showFailColors = false
-            initvars.gameInit(ply, stats, game)
-            initvars.mtrxClr(gMtrx)
-            states.bagReset(ply, settings)
-            initvars.plyInit(ply)
+
+            initvars.restartGame(ply, game, stats, gMtrx, settings, states)
         end
         if k == "i" then
             if not game.showFailColors then
@@ -411,6 +403,12 @@ function love.keypressed(k)
             initvars.mtrxClr(gMtrx)
             stats.clrDbg = stats.clrDbg + 1
         end
+
+        if k == "backspace" then
+            states.addRows("g", math.floor(love.math.random(1, gBoard.visW)), math.floor(love.math.random(1, 4)), gMtrx,
+                gBoard, ply, blocks)
+        end
+
         if k == "9" then
             if not settings.freezeTxt then
                 settings.freezeTxt = true
@@ -477,7 +475,7 @@ function love.update(dt)
         wWd, wHg = lg.getWidth(), lg.getHeight()
     end
 
-    --TODO: Fix timings?
+    -- tempoary fix with library
     if settings.useVSync then
         lw.setVSync(1)
     else
@@ -556,6 +554,10 @@ function love.update(dt)
             end
         end
 
+        if ply.dangerA > 0 then
+            ply.dangerA = ply.dangerA - dt * 0.85
+        end
+
         -- fail stats hover effect
         if mX > 0 and mX < wWd and
             mY > wHg - 45 and mY < wHg then
@@ -591,9 +593,6 @@ function love.update(dt)
         if not game.isCountdown then
             stats.time = stats.time + dt
 
-            -- flip update
-            states.flipStateUpd(ply)
-
             if stats.finK > 2 then
                 stats.finesse = stats.finesse + 1
                 stats.finK = 0
@@ -612,20 +611,12 @@ function love.update(dt)
             end
 
             if restartUI.update(game, dt) then
-                game.isFail = false
-                game.showFailColors = false
-                initvars.gameInit(ply, stats, game)
-                initvars.mtrxClr(gMtrx)
-                states.bagReset(ply, settings)
-                initvars.plyInit(ply)
+                initvars.restartGame(ply, game, stats, gMtrx, settings, states)
                 stats.qrTime = 0
             end
 
             -- line delay function
             if ply.isLnDly then
-                if ply.isHDrop then
-                    ply.isHDrop = false
-                end
                 if ply.lnDlyTmr < ply.lnDly then
                     ply.lnDlyTmr = ply.lnDlyTmr + dt
                 else
@@ -649,9 +640,6 @@ function love.update(dt)
 
             -- entry delay (are)
             if ply.isEnDly then
-                if ply.isHDrop then
-                    ply.isHDrop = false
-                end
                 if ply.enDlyTmr < ply.enDly then
                     ply.enDlyTmr = ply.enDlyTmr + dt
                 else
@@ -683,7 +671,7 @@ function love.update(dt)
             -- danger zone detection
             if states.dangerCheck(gMtrx, gBoard) == 1 then
                 -- TODO: This is safe right?
-                if ply.dangerA < 0.15 then
+                if ply.dangerA <= 0.15 then
                     ply.dangerA = tonumber(string.format("%.2f", ply.dangerA + dt))
                 elseif ply.dangerA > 0.15 then
                     ply.dangerA = tonumber(string.format("%.2f", ply.dangerA - dt))
@@ -745,12 +733,14 @@ function love.update(dt)
 
         -- ingame function
         if not ply.isLnDly and not ply.isEnDly then
-            ctrl.shiftBlk(ply, blocks, gBoard, gMtrx, settings, keys, dt)
+            ctrl.shiftBlk(ply, blocks, gBoard, gMtrx, settings, keys, game, dt)
 
-            -- soft drop
-            ctrl.sDropRepeat(ply, stats, game, gBoard, gMtrx, keys, blocks, dt)
+            if not game.isCountdown then
+                -- soft drop
+                ctrl.sDropRepeat(ply, stats, game, gBoard, gMtrx, keys, blocks, dt)
 
-            states.gravUpd(ply, gMtrx, blocks, gBoard, settings, stats, dt)
+                states.gravUpd(ply, gMtrx, blocks, gBoard, settings, stats, dt)
+            end
 
             -- secret grade check
             states.sgCheck(gMtrx, gBoard, stats)
@@ -767,7 +757,7 @@ function love.update(dt)
         -- game fail function
         if states.isGFail(ply, blocks, gBoard, gMtrx) and not ply.isLnDly and not ply.isEnDly then
             if not game.isFail and not settings.disableAftrImg then
-                effect.newLineEffect(nil, gBoard, stats.failEffect, true, true, gCol.red, 0.5, 2.5)
+                effect.newLineEffect(nil, gBoard, stats.failEffect, true, true, gCol.red, .9, 3)
             end
 
             game.isFail = true
@@ -799,7 +789,7 @@ function love.update(dt)
         end
 
         if settings.shakeBoard then
-            effect.updShake(ply, settings, gBoard, dt)
+            effect.updShake(ply, settings, game, gBoard, dt)
         end
 
         -- for fail text
@@ -822,13 +812,20 @@ function love.update(dt)
 end
 
 function love.draw()
+    gfx.drawBG(0, 0, gCol.nBox, gCol.bg, 4, 1)
+    gfx.drawBG(0, 0, settings.bgCol[1], settings.bgCol[2], 4, settings.bgFilter)
+
+    if settings.showDanger then
+        gfx.drawBG(0, 0, gColD.red, gCol.red, 4, lerp.linear(0, .1, ply.dangerA / 0.25))
+    end
+
     -- game board
     lg.push()
     lg.scale(settings.scale, settings.scale)
     lg.translate(
         ((wWd / (2 * settings.scale)) - ((gBoard.w * gBoard.visW) / 2)) +
         lerp.linear(0, (ply.sW / 3.5) * settings.scale, ply.shakeXTime),
-        ((wHg / (2 * settings.scale)) - ((gBoard.h * (gBoard.visH + 1)) / 2)) +
+        ((wHg / (2 * settings.scale)) - ((gBoard.h * (gBoard.visH + (gBoard.visH - 20))) / 2)) +
         lerp.linear(0, (ply.sH / 3.5) * settings.scale, ply.shakeYTime)
     )
     lg.setLineWidth(1)
@@ -837,11 +834,11 @@ function love.draw()
     effect.lEDraw(stats.failEffect)
 
     lg.setColor(gCol.bgB)
-    lg.rectangle("fill", gBoard.x, gBoard.y + gBoard.h, gBoard.w * gBoard.visW, gBoard.h * gBoard.gH - gBoard.h)
+    lg.rectangle("fill", gBoard.x, gBoard.y + gBoard.h, gBoard.w * gBoard.visW, gBoard.h * gBoard.visH - gBoard.h)
 
     -- danger zone overlay
     if settings.showDanger then
-        if not game.isFail and not game.isPaused then
+        if not game.isPaused then
             lg.setColor(1, 0.15, 0.15, ply.dangerA)
             lg.rectangle("fill", gBoard.x, gBoard.y + gBoard.w, gBoard.w * gBoard.visW, gBoard.h * (gBoard.visH - 1))
         end
@@ -858,6 +855,7 @@ function love.draw()
     -- ##################
     -- ### board area ###
     -- ##################
+
     if not game.isPaused then
         -- hard drop effect
         effect.hDDrw(stats.hDEfct, ply, gBoard, settings, game)
@@ -922,6 +920,15 @@ function love.draw()
         gfx.dDangerBlk(blocks, gMtrx, ply, game, states, tex, gBoard, settings)
     end
 
+    -- board frame
+    lg.setColor(0.7, 0.7, 0.7, 1)
+    lg.line(gBoard.x, gBoard.y + gBoard.h, gBoard.x, gBoard.y + (gBoard.h * gBoard.visH))
+
+    lg.line(gBoard.x, gBoard.y + (gBoard.h * gBoard.visH), gBoard.x + (gBoard.w * gBoard.visW),
+        gBoard.y + (gBoard.h * gBoard.visH))
+    lg.line(gBoard.x + (gBoard.w * gBoard.visW), gBoard.y + gBoard.h, gBoard.x + (gBoard.w * gBoard.visW),
+        gBoard.y + (gBoard.h * gBoard.visH))
+
     lg.push()
     lg.translate(2, 2)
     countdown.draw(gBoard, gColD, fonts, game, true)
@@ -966,28 +973,51 @@ function love.draw()
     end
 
     -- next frame text
+    local sOff, sAlp = 3, .65
+    local nFrmYPos = 20 + (gBoard.visH - 20) - 1
+
+    lg.setColor(gCol.nBox[1], gCol.nBox[2], gCol.nBox[3], sAlp)
+    lg.rectangle("fill", gBoard.w * (gBoard.visW + 1) + sOff, gBoard.y + nFrmYPos + sOff, 80, 23)
+
     lg.setColor(gCol.nBox)
-    lg.rectangle("fill", gBoard.w * (gBoard.visW + 1), gBoard.y + 20, 80, 23)
+    lg.rectangle("fill", gBoard.w * (gBoard.visW + 1), gBoard.y + nFrmYPos, 80, 23)
     lg.setColor(gStyle.nxtCol(ply, settings, game, ply.currBlk, gCol, gColD, false))
-    lg.rectangle("fill", gBoard.w * (gBoard.visW + 1), gBoard.y + 20, 3, 23)
+    lg.rectangle("fill", gBoard.w * (gBoard.visW + 1), gBoard.y + nFrmYPos, 3, 23)
 
     -- next box
     lg.push()
     lg.scale(.9, .9)
     lg.translate(30, 10)
+
+    lg.push()
+    lg.translate(sOff, sOff)
+    lg.setColor(gCol.gray[1], gCol.gray[2], gCol.gray[3], sAlp)
+    gfx.dNBox(blocks, ply, game, settings, gBoard, false, true)
+    lg.pop()
+
     gfx.dNBox(blocks, ply, game, settings, gBoard, false)
     lg.pop()
 
     -- hold frame text
     if game.useHold then
+        lg.setColor(gCol.nBox[1], gCol.nBox[2], gCol.nBox[3], sAlp)
+        lg.rectangle("fill", -60 - (80 / 2) + sOff, gBoard.y + nFrmYPos + sOff, 80, 23)
+
         lg.setColor(gCol.nBox)
-        lg.rectangle("fill", -60 - (80 / 2), gBoard.y + 20, 80, 23)
+        lg.rectangle("fill", -60 - (80 / 2), gBoard.y + nFrmYPos, 80, 23)
         lg.setColor(gStyle.nxtCol(ply, settings, game, ply.hold, gCol, gColD, true))
-        lg.rectangle("fill", -23, gBoard.y + 20, 3, 23)
+        lg.rectangle("fill", -23, gBoard.y + nFrmYPos, 3, 23)
 
         lg.push()
         lg.scale(.9, .9)
         lg.translate(-5, 10)
+
+        lg.push()
+        lg.translate(sOff, sOff)
+        lg.setColor(gCol.gray[1], gCol.gray[2], gCol.gray[3], sAlp)
+        gfx.dNBox(blocks, ply, game, settings, gBoard, true, true)
+        lg.pop()
+
         -- hold box
         gfx.dNBox(blocks, ply, game, settings, gBoard, true)
         lg.pop()
@@ -1021,15 +1051,6 @@ function love.draw()
         lg.printf("COMBO x" .. stats.comb - 1, fonts.othr, -1200, gBoard.h * (gBoard.visH - 9.75), 1200 - 20, "right")
     end
 
-    -- board frame
-    lg.setColor(0.7, 0.7, 0.7, 1)
-    lg.line(gBoard.x, gBoard.y + gBoard.h, gBoard.x, gBoard.y + (gBoard.h * gBoard.visH))
-
-    lg.line(gBoard.x, gBoard.y + (gBoard.h * gBoard.visH), gBoard.x + (gBoard.w * gBoard.visW),
-        gBoard.y + (gBoard.h * gBoard.visH))
-    lg.line(gBoard.x + (gBoard.w * gBoard.visW), gBoard.y + gBoard.h, gBoard.x + (gBoard.w * gBoard.visW),
-        gBoard.y + (gBoard.h * gBoard.visH))
-
     -- ghost piece
     if not game.isPaused and not game.isFail and not ply.isLnDly and not ply.isEnDly and not game.isCountdown and settings.showGhost then
         gfx.bGhost(false, ply, blocks, gMtrx, states, gBoard, settings, game)
@@ -1037,7 +1058,7 @@ function love.draw()
     end
 
     lg.push()
-    lg.translate((not settings.isDebug and arg[2] ~= "debug") and -155 or -175, (gBoard.h - 2) * gBoard.visH)
+    lg.translate((arg[2] ~= "debug") and -155 or -175, (gBoard.h - 2) * gBoard.visH)
     if not game.isPaused and settings.showKOverlay and settings.aKOverPos then
         kOver.drwKey(overlays, true)
     end
@@ -1206,8 +1227,8 @@ function love.draw()
                 tostring(states.lowestCells(ply, gMtrx, blocks, gBoard) - ply.y >= 1 + gTable.gravMult[ply.gMult]) ..
                 ")" ..
                 "\nquickMove: " ..
-                states.quickMove(-1, ply, gMtrx, blocks, gBoard) ..
-                " / " .. states.quickMove(1, ply, gMtrx, blocks, gBoard) ..
+                states.quickMove(-1, ply, gMtrx, blocks, gBoard, game) ..
+                " / " .. states.quickMove(1, ply, gMtrx, blocks, gBoard, game) ..
                 "\nnext: " ..
                 table.concat(ply.next, " ,") ..
                 "\nnHist: " ..
@@ -1222,7 +1243,7 @@ function love.draw()
                 ply.y ..
                 "\nvisW: " .. gBoard.visW .. "\nvisH: " .. gBoard.visH ..
                 "\nbRot: " ..
-                ply.bRot .. " / " .. #blocks[ply.currBlk] .. "\nd: " .. ply.d .. " / " .. ply.flipD ..
+                ply.bRot .. " / " .. #blocks[ply.currBlk] .. "\nd: " .. ply.d ..
                 "\ncurrBlk: " ..
                 ply.currBlk .. " / " .. #blocks ..
                 "\ndasTimer: " ..
@@ -1245,6 +1266,7 @@ function love.draw()
                 "\nisAlrRot: " ..
                 tostring(ply.isAlrRot) ..
                 "\nisAlreadyHold: " .. tostring(ply.isAlreadyHold) .. "\nisIRS: " .. tostring(ply.isIRS) ..
+                "\nisInstantGrav: " .. tostring(game.isInstantGrav) ..
                 "\nisPaused: " .. tostring(game.isPaused) .. "\nisPauseDelay: " .. tostring(game.isPauseDelay) ..
                 "\nrotSys: " ..
                 settings.rotSys ..

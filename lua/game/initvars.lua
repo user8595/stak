@@ -69,7 +69,9 @@ function initvars.gameInit(plyVar, sts, gameVar)
         gameVar.cTimer = 0
     end
 
+    -- countdown
     gameVar.isCountdown = true
+    
     gameVar.is40LClr = false
     gameVar.isHScore = false
     gameVar.statsIndex = 0
@@ -89,6 +91,17 @@ function initvars.mtrxClr(mtrxTab)
             mtrxTab[y][x] = 0
         end
     end
+end
+
+function initvars.restartGame(ply, game, stats, gMtrx, settings, states)
+    game.isPaused = false
+    game.isFail = false
+    game.showFailColors = false
+    initvars.gameInit(ply, stats, game)
+    initvars.mtrxClr(gMtrx)
+    states.bagReset(ply, settings)
+    initvars.plyInit(ply)
+    ply.currBlk = ply.next[1]
 end
 
 -- time rendering
