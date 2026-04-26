@@ -5,9 +5,12 @@ local initvars = require "lua.game.initvars"
 local gTable = require "lua.tables"
 local stg = require "lua.default.settings"
 
+local floor = math.floor
+
 local lk = love.keyboard
 local ctrl = {}
 
+--TODO: ARR & SDR should use dt instead of integer numbers
 --- arr function
 ---@param d any -1 | 1
 ---@param ply table
@@ -18,15 +21,15 @@ local ctrl = {}
 ---@param game table
 local function arrRpt(d, ply, blocks, gBoard, gMtrx, settings, game)
     if ply.arr > 0 then
-        if states.bMove(ply, blocks, gBoard, ply.x + d, ply.y, ply.bRot, gMtrx) then
+        if states.bMove(ply, blocks, gBoard, ply.x + d, floor(ply.y), ply.bRot, gMtrx) then
             if not game.isCountdown then
                 ply.x = ply.x + d
 
-                if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
+                if settings.rotSys == "SRS" then
+                    ply.lDTimer = 0
+                end
+                if floor(ply.y) == states.lowestCells(ply, gMtrx, blocks, gBoard) then
                     states.addMoves(ply, game, true)
-                    if settings.rotSys == "SRS" then
-                        ply.lDTimer = 0
-                    end
                 end
             end
             if ply.arrTimer > 0 then
@@ -35,7 +38,7 @@ local function arrRpt(d, ply, blocks, gBoard, gMtrx, settings, game)
         end
     else
         if not game.isCountdown then
-            ply.x = states.quickMove(d, ply, gMtrx, blocks, gBoard, game)
+            ply.x = states.quickMove(d, ply, gMtrx, blocks, gBoard)
         end
     end
 end
@@ -49,18 +52,18 @@ end
 ---@param gBoard table
 ---@param gMtrx table
 function ctrl.move(d, ply, stats, settings, blocks, gBoard, gMtrx)
-    if states.bMove(ply, blocks, gBoard, ply.x + d, ply.y, ply.bRot, gMtrx) then
+    if states.bMove(ply, blocks, gBoard, ply.x + d, floor(ply.y), ply.bRot, gMtrx) then
         ply.x = ply.x + d
         ply.dasTimer = 0
         ply.arrTimer = 0
 
         stats.finK = stats.finK + 1
 
-        if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
+        if settings.rotSys == "SRS" then
+            ply.lDTimer = 0
+        end
+        if ply.y >= states.lowestCells(ply, gMtrx, blocks, gBoard) then
             states.addMoves(ply, game, true)
-            if settings.rotSys == "SRS" then
-                ply.lDTimer = 0
-            end
         end
     end
 end
@@ -108,13 +111,14 @@ end
 function ctrl.sDrop(ply, stats, blocks, gBoard, gMtrx)
     stats.finK = stats.finK + 1
 
-    if states.bMove(ply, blocks, gBoard, ply.x, ply.y + 1, ply.bRot, gMtrx) then
+    if states.bMove(ply, blocks, gBoard, ply.x, floor(ply.y) + 1, ply.bRot, gMtrx) then
         ply.sdrTimer = 0
         if ply.sdr > 0 then
             ply.y = ply.y + 1
         else
             local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
             ply.y = lowestY
+            stats.scr = stats.scr + lowestY
         end
     else
         if game.useSonicDrop then
@@ -145,11 +149,7 @@ function ctrl.sDropRepeat(ply, stats, game, gBoard, gMtrx, keys, blocks, dt)
                     ply.sdrTimer = ply.sdrTimer - ply.sdr
                 end
             else
-                if not game.useSonicDrop then
-                    if ply.gTimer < ply.grav then
-                        ply.gTimer = ply.grav
-                    end
-                else
+                if game.useSonicDrop then
                     if ply.lDTimer < ply.lDelay then
                         ply.lDTimer = ply.lDelay
                     end
@@ -163,9 +163,8 @@ function ctrl.sDropRepeat(ply, stats, game, gBoard, gMtrx, keys, blocks, dt)
             ply.sdrTimer = ply.sdrTimer + dt
         end
     else
-        if states.bMove(ply, blocks, gBoard, ply.x, ply.y + 1, ply.bRot, gMtrx) then
-            ply.sdrTimer = 0
-        end
+        -- inf
+        ply.sdrTimer = (ply.sdr > 0) and ply.sdrTimer - ply.sdr or 0
     end
 end
 
@@ -180,36 +179,30 @@ function ctrl.hDrop(ply, stats, blocks, gMtrx, gBoard, settings)
 
     local hY = states.lowestCells(ply, gMtrx, blocks, gBoard)
     -- so many edge cases
-    if settings.hDropEffect and states.bMove(ply, blocks, gBoard, ply.x, ply.y + 1, ply.bRot, gMtrx) then
+    if settings.hDropEffect and states.bMove(ply, blocks, gBoard, ply.x, math.floor(ply.y) + 1, ply.bRot, gMtrx) then
         effect.newLockEffect(stats.hDEfct, blocks, ply, gMtrx, gBoard, states, true)
     end
 
-    stats.scr = stats.scr + (2 * (hY - ply.y))
+    stats.scr = stats.scr + (2 * (hY - math.floor(ply.y)))
     ply.y = hY
-
-    --TODO: Finish board shake effect
-    if stg.shakeDrop then
-        ply.shakeYTime = 1
-        ply.sYInv = true
-    end
 
     if not game.useSonicDrop then
         -- ignore locking piece on sonic lock
-        states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
+        states.bAdd(ply.x, math.floor(ply.y), blocks, ply, gMtrx, gBoard, settings, stats)
+
+        ply.shakeYTime = 1
+        ply.sYInv = true
 
         ply.isHDrop = true
         ply.arrTimer = 0
         ply.sdrTimer = 0
 
-        ply.gTimer = 0
         ply.lDTimer = 0
 
         if not ply.isLnDly then
             ply.isEnDly = true
         end
         initvars.plyInit(ply)
-    else
-        ply.gTimer = 0
     end
 end
 
@@ -223,6 +216,8 @@ end
 ---@param isFlip boolean
 function ctrl.rot(d, ply, stats, blocks, settings, gBoard, gMtrx, isFlip)
     stats.finK = stats.finK + 1
+
+    local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
 
     -- next rot.
     local tR = ply.bRot + d
@@ -242,34 +237,17 @@ function ctrl.rot(d, ply, stats, blocks, settings, gBoard, gMtrx, isFlip)
             ply.d = 2
         end
     else
-        if settings.rotSys == "SRS" then
-            if tRPrev == 1 then
-                tR = 3
-            end
-            if tRPrev == 2 then
-                tR = 4
-            end
-            if tRPrev == 3 then
-                tR = 1
-            end
-            if tRPrev == 4 then
-                tR = 2
-            end
-        else
-            if ply.currBlk ~= 1 or ply.currBlk ~= 6 then
-                if tRPrev == 1 then
-                    tR = 3
-                end
-                if tRPrev == 2 then
-                    tR = 4
-                end
-                if tRPrev == 3 then
-                    tR = 1
-                end
-                if tRPrev == 4 then
-                    tR = 2
-                end
-            end
+        if tRPrev == 1 then
+            tR = (settings.rotSys == "SRS") and 3 or (#blocks[ply.currBlk] > 2 and ply.currBlk ~= 6) and 3 or 2
+        end
+        if tRPrev == 2 then
+            tR = (settings.rotSys == "SRS") and 4 or (#blocks[ply.currBlk] > 2 and ply.currBlk ~= 6) and 4 or 1
+        end
+        if tRPrev == 3 then
+            tR = 1
+        end
+        if tRPrev == 4 then
+            tR = 2
         end
     end
 
@@ -285,23 +263,24 @@ function ctrl.rot(d, ply, stats, blocks, settings, gBoard, gMtrx, isFlip)
     if bR then
         ply.x, ply.y = dx, dy
         ply.bRot = tR
+        ply.lastKick = t
     end
 
-    if ply.y == states.lowestCells(ply, gMtrx, blocks, gBoard) then
+    if ply.y >= lowestY then
+        ply.isAlrRot = true
+        states.addMoves(ply, game, false)
+
         if bR then
-            ply.isAlrRot = true
-            ply.spinReward = states.isSpin(ply.x, ply.y, ply, blocks, gBoard, gMtrx, t)
+            ply.spinReward = states.isSpin(ply.x, math.floor(ply.y), ply, blocks, gBoard, gMtrx, t)
         else
             ply.spinReward = 0
         end
-        states.addMoves(ply, game, false)
     end
 end
 
 ---@param ply table
 ---@param stats table
----@param settings table
-function ctrl.hold(ply, stats, settings)
+function ctrl.hold(ply, stats)
     if not ply.isAlreadyHold and not ply.isLnDly and not ply.isEnDly then
         stats.finK = 0
         states.holdFunc(ply)

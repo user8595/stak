@@ -31,12 +31,12 @@ function initvars.plyInit(plyVar)
     plyVar.moveR = 0
     plyVar.moveRBlk = 0
 
-    plyVar.lDTimer, plyVar.gTimer, plyVar.sdrTimer = 0, 0, 0
+    plyVar.lDTimer, plyVar.sdrTimer = 0, 0
 end
 
 function initvars.gameInit(plyVar, sts, gameVar)
     plyVar.arrTimer, plyVar.dasTimer = 0, 0
-    plyVar.gTimer, plyVar.grav = 0, gTable.grav[1]
+    plyVar.grav = gTable.grav[1]
     -- index table
     plyVar.gMult = 1
     plyVar.isAlreadyHold = false
@@ -83,6 +83,8 @@ function initvars.gameInit(plyVar, sts, gameVar)
     tClear(sts.lPart)
     tClear(sts.clearedLinesYPos)
     tClear(sts.hDEfct)
+    tClear(sts.textEfct)
+    tClear(sts.textClr)
 end
 
 function initvars.mtrxClr(mtrxTab)

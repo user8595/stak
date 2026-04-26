@@ -1,26 +1,14 @@
 -- table values
 local tables = {
     grav = {
-        -- level 1 to 5
-        1, 0.8, 0.65, 0.53, 0.32,
+        --TODO: Refactor gravity function
+        -- level 1-19
+        0.0167, 0.023, 0.035, 0.04, 0.045,
+        0.06, 0.07, 0.09, 0.14, 0.2,
+        0.35, 0.65, 0.8, 1, 2,
+        3.5, 5, 6, 7, 8
 
-        -- level 5 to 10
-        0.25, 0.18, 0.10, 0.05, 0.03,
-
-        -- level 11 to 13
-        0.020, 0.010, 0.001
-
-        -- level 13+ == 0s
-    },
-    gravMult = {
-        -- < level 13
-        0,
-
-        -- level 13 to 15
-        0, 1, 2,
-
-        -- level 15 to 20+
-        4, 6, 8, 12, 30
+        -- level 20+ = gBoard.visH or 20g
     },
     sGrade = {
         9, 8, 7, 6, 5, 4, 3, 2, 1,

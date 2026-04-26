@@ -1,3 +1,4 @@
+-- might remove this in the future
 local lg = love.graphics
 local ipairs = ipairs
 local fontInfo = lg.newFont("/assets/fonts/Picopixel.ttf", 14)
@@ -42,18 +43,18 @@ local textInfo = {
                     table.remove(txtTab, i)
                 end
             end
-
         end
         if scale > 0.75 then
             fontInfo:release()
             fontInfo = lg.newFont("/assets/fonts/Picopixel.ttf", 14 * scale)
         end
     end,
-    draw = function(txtTab)
+    draw = function(txtTab, scale)
         for i, txt in ipairs(txtTab) do
             lg.setColor(txt.col[1], txt.col[2], txt.col[3], txt.a)
             if txt.isCenter then
-                lg.printf(txt.str, fontInfo, 0, txt.y - (fontInfo:getHeight() * (i - 1)), lg.getWidth(), "center")
+                lg.printf(txt.str, fontInfo, 0,
+                    (txt.y - (fontInfo:getHeight() * (i - 1))) - (fontInfo:getHeight() * scale), lg.getWidth(), "center")
             else
                 lg.print(txt.str, fontInfo, txt.x, txt.y - (fontInfo:getHeight() * (i - 1)))
             end

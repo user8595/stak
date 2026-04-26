@@ -7,9 +7,7 @@ local settings = {
     hDropEffect = true,
     coloredHDropEffect = true,
     --TODO: Finish all spin support
-    detectAllSpin = false,
-    --TODO: Fix broken smooth fall effect
-    -- unimplemented now
+    allSpin = false,
     smoothFall = false,
     
     fpsTarget = 60,
@@ -19,6 +17,8 @@ local settings = {
         gCol.bgB,
         gCol.bg,
     },
+
+    shakeScreen = true,
 
     -- accessibility features
     shakeInt = 1, -- preferrably values ranged at 0 - 1.49
@@ -50,7 +50,6 @@ local settings = {
     -- only line particle animation speed
     fastAnim = false,
 
-    -- broken for now
     useVSync = true,
 
     -- for txt info (debug only)

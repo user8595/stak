@@ -49,6 +49,9 @@ local stats = {
     lkEfct = {},
     -- for hard drop effect
     hDEfct = {},
+    -- text effect
+    textEfct = {},
+    textClr = {},
     -- for line clear particles
     lPart = {},
     clearedLinesYPos = {}

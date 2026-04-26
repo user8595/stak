@@ -4,7 +4,7 @@ local gTable   = require "lua.tables"
 local initvars = require "lua.game.initvars"
 local ipairs   = ipairs
 local lg       = love.graphics
-local lDlyVal  = .1
+local lDlyVal  = .35
 local gfx      = {}
 
 ---@param bl any
@@ -150,7 +150,9 @@ end
 ---@param game table
 ---@param gBoard table
 ---@param strokeWd number
-function gfx.dOutline(mtrxTab, game, gBoard, strokeWd)
+---@param noColors boolean | nil
+---@param static boolean | nil
+function gfx.dOutline(mtrxTab, game, gBoard, strokeWd, noColors, static)
     local settings = require "lua.default.settings"
     local sCol = function()
         if not game.isFail then
@@ -166,51 +168,47 @@ function gfx.dOutline(mtrxTab, game, gBoard, strokeWd)
     for y, _ in ipairs(mtrxTab) do
         for x, br in ipairs(mtrxTab[y]) do
             if br ~= 0 then
-                local yOff = 0
-                if settings.perspBlocks then
-                    yOff = strokeWd + 0.5
+                local yOff = (not settings.perspBlocks) and 0 or strokeWd + 1
+
+                ---@param l boolean
+                ---@param r boolean
+                ---@param b boolean
+                local function lnGfx(l, r, b)
+                    local l, r, b = (l) and strokeWd or 0, (r) and 2 or 1, (b) and 2 or 1
+                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - l,
+                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
+                        (gBoard.w + (strokeWd * r)),
+                        (gBoard.h + (strokeWd * b)) + yOff)
                 end
-                -- there must be a better way than this right
-                -- ##### bottom edge rows
-                if x == 1 and y == #mtrxTab then
+
+                local function check(testX, testY)
+                    if testX <= 1 and testY >= #mtrxTab then
+                        return false, false, false
+                    elseif testX >= #mtrxTab[y] and testY >= #mtrxTab then
+                        return true, false, false
+                    elseif testX <= 1 then
+                        return false, false, true
+                    elseif testX >= #mtrxTab[y] then
+                        return true, false, true
+                    elseif testY >= #mtrxTab then
+                        return true, true, false
+                    else
+                        return true, true, true
+                    end
+                end
+
+                if not noColors then
                     lg.setColor(sCol())
-                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1),
-                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                        (gBoard.w + strokeWd),
-                        (gBoard.h + strokeWd) + yOff)
-                elseif x == #mtrxTab[y] and y == #mtrxTab then
-                    lg.setColor(sCol())
-                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
-                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                        gBoard.w + strokeWd,
-                        (gBoard.h + strokeWd) + yOff)
-                    -- ##### left & right columns
-                elseif x == 1 then
-                    lg.setColor(sCol())
-                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1),
-                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                        gBoard.w + strokeWd,
-                        (gBoard.h + (strokeWd * 2) + yOff))
-                elseif x == #mtrxTab[y] then
-                    lg.setColor(sCol())
-                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
-                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                        gBoard.w + strokeWd,
-                        (gBoard.h + (strokeWd * 2)) + yOff)
-                    -- bottom row (general)
-                elseif y == #mtrxTab then
-                    lg.setColor(sCol())
-                    lg.rectangle("fill", gBoard.x + gBoard.w * (x - 1) - strokeWd,
-                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                        gBoard.w + (strokeWd * 2),
-                        (gBoard.h + (strokeWd)) + yOff)
+                end
+
+                local l, r, b
+                if not static then
+                    l, r, b = check(x, y)
                 else
-                    lg.setColor(sCol())
-                    lg.rectangle("fill", (gBoard.x + gBoard.w * (x - 1) - strokeWd),
-                        (gBoard.y + gBoard.h * (y - 1) - strokeWd) - yOff,
-                        (gBoard.w + (strokeWd * 2)),
-                        (gBoard.h + (strokeWd * 2)) + yOff)
+                    l, r, b = true, true, true
                 end
+
+                lnGfx(l, r, b)
             end
         end
     end
@@ -232,7 +230,7 @@ function gfx.dBPersp(mtrxTab, xOff, yOff, settings, ply, gBoard, game, isLDlyFad
             for x, blk in ipairs(mtrxTab[y]) do
                 if blk ~= 0 then
                     lg.push()
-                    lg.translate(0, -2.5)
+                    lg.translate(0, -3)
                     local colors = function()
                         local cOff = .1
                         if settings.rotSys == "ARS" then

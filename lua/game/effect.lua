@@ -250,11 +250,127 @@ function effect.hDDrw(lockEffectTab, plyVar, brdVar, settings, game)
     end
 end
 
+-- did i just rewrite textInfo.lua
+-- might remove that in the future soon, prob
+-- so complex
+
+---creates new text effect, which adds to a object handler via table.insert()
+---@param textTable table
+---@param str string
+---@param x number
+---@param y number
+---@param align love.AlignMode
+---@param a number
+---@param aOvr number
+---@param fadeTime number
+---@param fadeSpd number
+---@param limit number | nil
+---@param colTxt table
+---@param isStack boolean | nil
+---@param isScale boolean | nil
+---@param scaleInit number | nil
+---@param scaleSpd number | nil
+---@param useBg boolean | nil
+---@param bgCol table | nil
+---@param bgAOvr number | nil
+---@param bgPadding number | nil
+function effect.newTextEffect(textTable, str, x, y, align, a, aOvr, fadeTime, fadeSpd, limit, colTxt, isStack, isScale,
+                              scaleInit, scaleSpd, useBg, bgCol, bgAOvr, bgPadding)
+    table.insert(textTable, {
+        str = str,
+        x = x,
+        y = y,
+        align = align,
+        t = 0,
+        a = a,
+        aOvr = aOvr,
+        fadeTime = fadeTime,
+        fadeSpd = fadeSpd,
+        limit = (type(limit) ~= nil) and limit or 0,
+        colTxt = colTxt,
+        isStack = (type(isStack) ~= "nil") and isStack or false,
+        isScale = (type(isScale) ~= "nil") and isScale or false,
+        scaleInit = (type(scaleInit) ~= "nil") and scaleInit or 1,
+        scaleSpd = (type(scaleSpd) ~= "nil") and scaleSpd or 0,
+        useBg = (type(useBg) ~= "nil") and useBg or false,
+        bgCol = (type(bgCol) ~= "nil") and bgCol or { 0, 0, 0 },
+        bgAOvr = (type(bgAOvr) ~= "nil") and bgAOvr or 0,
+        bgPadding = (type(bgPadding) ~= "nil") and bgPadding or 0,
+    })
+end
+
+---updates text effect obj. in object handler from table
+---@param textTable table
+---@param dt number | integer
+function effect.updTextEffect(textTable, dt)
+    for i, txt in ipairs(textTable) do
+        if txt.t < txt.fadeTime then
+            txt.t = txt.t + dt
+        else
+            if txt.a + txt.aOvr > 0 then
+                txt.a = txt.a - dt * txt.fadeSpd
+            else
+                table.remove(textTable, i)
+            end
+        end
+    end
+end
+
+---draws text from object handler table
+---@param textTable table
+---@param font love.Font
+---@param brightMult number
+function effect.drwTextEffect(textTable, font, game, brightMult)
+    for i, txt in ipairs(textTable) do
+        -- current lines - (current lines - prev. lines)?
+        -- multi line aligning
+        local _, lines = font:getWrap(txt.str, font:getWidth(txt.str))
+        local wd = (txt.limit ~= 0) and txt.limit or font:getWidth(txt.str)
+
+        local x, y =
+            (txt.isScale) and -(font:getWidth(txt.str) + txt.limit) / 2 or txt.x,
+            (txt.isScale) and -((font:getHeight()) * #lines) / 2 or txt.y
+
+        local yStk = (txt.isStack) and ((font:getHeight()) + txt.bgPadding) * (i - 1) or 0
+
+        lg.push()
+        if txt.isScale then
+            lg.translate(txt.x + (((font:getWidth(txt.str) + txt.limit) / 2) - (font:getWidth(txt.str) / 2)), txt.y + ((font:getHeight() * #lines) / 2))
+            lg.scale(lerp.linear(txt.scaleSpd, txt.scaleInit, txt.a), lerp.linear(txt.scaleSpd, txt.scaleInit, txt.a))
+        end
+
+        if txt.useBg then
+            -- txt.aOvr, txt.bgAOvr = alpha override
+            if not game.isFail then
+                lg.setColor(txt.bgCol[1] + brightMult, txt.bgCol[2] + brightMult, txt.bgCol[3] + brightMult,
+                    txt.a + txt.bgAOvr)
+            else
+                lg.setColor(gCol.gOutline[1] + brightMult, gCol.gOutline[2] + brightMult, gCol.gOutline[3] + brightMult)
+            end
+            lg.rectangle("fill", x - txt.bgPadding, y - txt.bgPadding + yStk,
+                wd + txt.bgPadding,
+                (font:getHeight() * #lines) + txt.bgPadding)
+        end
+
+        local tPad = (txt.bgPadding > 0) and txt.bgPadding / 2 or txt.bgPadding
+        if not game.isFail then
+            lg.setColor(txt.colTxt[1] + brightMult, txt.colTxt[2] + brightMult, txt.colTxt[3] + brightMult,
+                txt.a + txt.aOvr)
+        else
+            lg.setColor(gCol.gOutline[1] + brightMult, gCol.gOutline[2] + brightMult, gCol.gOutline[3] + brightMult)
+        end
+        lg.printf(txt.str, font, x - tPad, y - tPad + yStk, wd, txt.align)
+        lg.pop()
+    end
+end
+
 --TODO: Implement board shake on x axis
 ---board shake effect function
 ---@param plyVar table
+---@param settings table
+---@param gBoard table
 ---@param dt number
-function effect.updShake(plyVar, settings, game, gBoard, dt)
+function effect.updShake(plyVar, settings, gBoard, dt)
     local hMult = {
         (gBoard.visH / 2) * settings.shakeInt,
         (gBoard.visH / 4) + ((plyVar.isHDrop) and 50 or 25 * settings.shakeInt),
@@ -269,7 +385,7 @@ function effect.updShake(plyVar, settings, game, gBoard, dt)
         else
             plyVar.sH = hMult[1]
         end
-        
+
         if not plyVar.sYInv then
             if plyVar.shakeYTime < 1 then
                 plyVar.shakeYTime = plyVar.shakeYTime + dt * lmth.random(10, 11)
@@ -284,6 +400,17 @@ function effect.updShake(plyVar, settings, game, gBoard, dt)
                 plyVar.sYInv = false
                 plyVar.isShakeY = false
             end
+        end
+    end
+end
+
+function effect.updScreenShake(game, dt)
+    if game.isScreenShake then
+        if game.sTimer < game.sTLen then
+            game.sTimer = game.sTimer + dt
+        else
+            game.sTimer = 0
+            game.isScreenShake = false
         end
     end
 end

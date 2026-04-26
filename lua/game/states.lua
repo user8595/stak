@@ -1,14 +1,18 @@
-local lmth = love.math
+local lmth     = love.math
 
-local tClear = require "lua.tClear"
-local effect = require "lua.game.effect"
-local game = require "lua.default.game"
-local stg = require "lua.default.settings"
-local gTable = require "lua.tables"
+local tClear   = require "lua.tClear"
+local effect   = require "lua.game.effect"
+local game     = require "lua.default.game"
+local stg      = require "lua.default.settings"
+local gTable   = require "lua.tables"
 local initvars = require "lua.game.initvars"
+local gCol     = require "lua.gCol"
+local lerp     = require "lua.lerp"
 
-local states = {}
-local bagDef = { 1, 5, 4, 6, 3, 7, 2 }
+local floor    = math.floor
+
+local states   = {}
+local bagDef   = { 1, 5, 4, 6, 3, 7, 2 }
 
 -- https://stackoverflow.com/questions/35572435/how-do-you-do-the-fisher-yates-shuffle-in-lua/68486276#68486276
 ---@param t table
@@ -81,11 +85,19 @@ end
 ---@param gBoard table
 ---@return number
 function states.lowestCells(plyVar, mtrxTab, blkTab, gBoard)
-    local tX, tY = plyVar.x, plyVar.y
-    while states.bMove(plyVar, blkTab, gBoard, tX, tY + 1, plyVar.bRot, mtrxTab) do
+    local tX, tY = plyVar.x, floor(plyVar.y)
+    while states.bMove(plyVar, blkTab, gBoard, tX, tY + 1, plyVar.bRot, mtrxTab) and tY < gBoard.visH do
         tY = tY + 1
     end
     return tY
+end
+
+--- returns framestep-like value with dt
+---@param fps number
+---@param grav number
+---@return number
+function states.frameStep(fps, grav)
+    return fps * (fps * grav) / fps
 end
 
 --- returns the furthest horizontal position of the current block, where 'd' is -1 | 1
@@ -94,26 +106,32 @@ end
 ---@param mtrxTab table
 ---@param blkTab table
 ---@param gBoard table
----@param game table
 ---@return number
-function states.quickMove(d, plyVar, mtrxTab, blkTab, gBoard, game)
-    local tX, tY = plyVar.x, plyVar.y
-    local lowestY = states.lowestCells(plyVar, mtrxTab, blkTab, gBoard)
-    local yGap = lowestY - tY
-    local gMult = gTable.gravMult[plyVar.gMult] + 1
-
-    if game.isInstantGrav or gMult > 1 or plyVar.grav <= 0 then
-        while states.bMove(plyVar, blkTab, gBoard, tX + d, tY, plyVar.bRot, mtrxTab)
-            -- this function is a for loop
-            and not states.bMove(plyVar, blkTab, gBoard, tX, tY + (yGap + 1), plyVar.bRot, mtrxTab) do
-            tX = tX + d
-        end
-    else
-        while states.bMove(plyVar, blkTab, gBoard, tX + d, tY, plyVar.bRot, mtrxTab) do
-            tX = tX + d
-        end
+function states.quickMove(d, plyVar, mtrxTab, blkTab, gBoard)
+    local tX, tY = plyVar.x, floor(plyVar.y)
+    while states.bMove(plyVar, blkTab, gBoard, tX + d, tY, plyVar.bRot, mtrxTab) do
+        tX = tX + d
     end
     return tX
+end
+
+--- adjusts current level
+---@param num number
+---@param ply any
+---@param stats any
+---@param gBoard any
+function states.adjLvl(num, ply, stats, gBoard)
+    stats.lv = stats.lv + num
+
+    if game.isGravityInc then
+        if stats.lv < #gTable.grav then
+            ply.grav = gTable.grav[stats.lv]
+        else
+            ply.grav = gBoard.visH
+        end
+    end
+
+    stats.nxtLines = stats.nxtLines + (num * 10)
 end
 
 -- line clear function
@@ -162,7 +180,16 @@ end
 ---@param gBoard table
 ---@param ply table
 ---@param blkTab table
-function states.addRows(blk, x, h, mtrxTab, gBoard, ply, blkTab)
+---@param isShake boolean | nil
+function states.addRows(blk, x, h, mtrxTab, gBoard, ply, blkTab, isShake)
+    local game = require "lua.default.game"
+
+    if isShake then
+        game.isScreenShake = true
+        game.sTLen = 0.05
+        game.shakeInt = game.prevShake + h
+    end
+
     for i = 1, h do
         mtrxTab[#mtrxTab + 1] = {}
         for xLn = 1, gBoard.visW do
@@ -173,8 +200,8 @@ function states.addRows(blk, x, h, mtrxTab, gBoard, ply, blkTab)
             end
         end
         table.remove(mtrxTab, 1)
-        if not states.bMove(ply, blkTab, gBoard, ply.x, ply.y, ply.bRot, mtrxTab) then
-            ply.y = ply.y - 1
+        if not states.bMove(ply, blkTab, gBoard, ply.x, floor(ply.y), ply.bRot, mtrxTab) and floor(ply.y) > 0 then
+            ply.y = floor(ply.y) - 1
         end
     end
 end
@@ -191,7 +218,7 @@ function states.bMove(plyVar, blkTab, brdTab, tX, tY, tRot, mtrxTab)
     if blkTab[plyVar.currBlk][tRot] ~= nil then
         for y = 1, #blkTab[plyVar.currBlk][tRot] do
             for x = 1, #blkTab[plyVar.currBlk][tRot][y] do
-                local testX, testY = tX + x, tY + y
+                local testX, testY = tX + x, math.floor(tY) + y
                 if blkTab[plyVar.currBlk][tRot][y][x] ~= 0 then
                     if testX < 1 or testX > brdTab.visW or testY < 1 or testY > brdTab.visH then
                         return false
@@ -231,29 +258,26 @@ function states.bRotate(plyVar, settings, tX, tY, d, bRot, blkTab, brdTab, gTabl
             local bLen = blkTab[plyVar.currBlk]
             if #bLen > 1 then
                 if #bLen[bRot] <= 3 and bLen ~= 1 then -- not an O piece
-                    -- not an I piece
-                    if plyVar.currBlk ~= 1 then
-                        if not states.bMove(plyVar, blkTab, brdTab, tX, tY, bRot, mtrxTab) then
-                            -- right kick
-                            if states.bMove(plyVar, blkTab, brdTab, tX + 1, tY, bRot, mtrxTab) then
-                                return true, tX + 1, tY, 1
-                            end
-                            -- left kick
-                            if states.bMove(plyVar, blkTab, brdTab, tX - 1, tY, bRot, mtrxTab) then
-                                return true, tX - 1, tY, 1
-                            end
-                            return false, tX, tY, 1
+                    if not states.bMove(plyVar, blkTab, brdTab, tX, tY, bRot, mtrxTab) then
+                        -- right kick
+                        if states.bMove(plyVar, blkTab, brdTab, tX + 1, tY, bRot, mtrxTab) then
+                            return true, tX + 1, tY, 1
                         end
-                    else
-                        if not states.bMove(plyVar, blkTab, brdTab, tX, tY, bRot, mtrxTab) then
-                            return false, tX, tY, 1
+                        -- left kick
+                        if states.bMove(plyVar, blkTab, brdTab, tX - 1, tY, bRot, mtrxTab) then
+                            return true, tX - 1, tY, 1
                         end
+                        return false, tX, tY, 0
                     end
                 end
+                if not states.bMove(plyVar, blkTab, brdTab, tX, tY, bRot, mtrxTab) then
+                    return false, tX, tY, 0
+                end
+                return true, tX, tY, 1
             end
-            return true, tX, tY, 1
+            return false, tX, tY, 0
         end
-        return false, tX, tY, 1
+        return false, tX, tY, 0
     elseif settings.rotSys == "SRS" then
         local tR
 
@@ -301,15 +325,7 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
     else
         newLClrUI(sts.lClearUI "?", plyVar.currBlk, 0.5, 0.65)
         print("!!! this should NOT happen ingame (blocks wont place normally) currBlk: " ..
-            plyVar.currBlk .. " bRot: " .. plyVar.bRot .. " x: " .. plyVar.x .. " y: " .. plyVar.y .. " !!!")
-    end
-
-    if stg.shakeDrop then
-        plyVar.isShakeY = true
-    else
-        if plyVar.lineClrTemp > 1 then
-            plyVar.isShakeY = true
-        end
+            plyVar.currBlk .. " bRot: " .. plyVar.bRot .. " x: " .. plyVar.x .. " y: " .. floor(plyVar.y) .. " !!!")
     end
 
     sts.stacks = sts.stacks + 1
@@ -326,6 +342,7 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
         end
 
         if clear then
+            plyVar.isClear = true
             cAnim = true
             -- store current y positions for cleared lines for use with moveCells() function
             -- same function as the hard drop effect
@@ -350,12 +367,25 @@ function states.bAdd(bX, bY, bL, plyVar, mtrxTab, brdTab, settings, sts)
     if settings.lockEffect then
         effect.newLockEffect(sts.lkEfct, bL, plyVar, false)
     end
+    --TODO: Finish board shake effect
+
+    if stg.shakeDrop then
+        plyVar.isShakeY = true
+    else
+        if plyVar.lineClrTemp > 1 then
+            plyVar.isShakeY = true
+        end
+    end
+
+    plyVar.shakeYTime = 1
+    plyVar.sYInv = true
 
     states.lineReward(cAnim, plyVar, sts, mtrxTab, brdTab, settings)
 end
 
 function states.lineReward(cAnim, plyVar, sts, mtrxTab, brdTab, settings)
     if cAnim then
+        tClear(sts.textEfct)
         -- start line delay
         plyVar.isLnDly = true
 
@@ -369,9 +399,11 @@ function states.lineReward(cAnim, plyVar, sts, mtrxTab, brdTab, settings)
         end
     end
 
+    local allClr = 0
     if states.isAllClr(mtrxTab, brdTab) then
-        print("+16000 score points from aClear")
-        sts.scr = sts.scr + 16000
+        print("+" .. allClr .. " score points from aClear")
+        allClr = 16000
+        sts.scr = sts.scr + allClr
         sts.clr.ac = sts.clr.ac + 1
 
         if settings.lineEffect then
@@ -379,10 +411,25 @@ function states.lineReward(cAnim, plyVar, sts, mtrxTab, brdTab, settings)
         end
         newLClrUI(sts.lClearAftrImg, sts.lineClr, "W", 5, 10)
         newLClrUI(sts.lClearUI, "C", "C", 0.5, 0.65, -28)
+
+        tClear(sts.textClr)
+        -- main text
+        effect.newTextEffect(sts.textClr, "All CLEAR!!", brdTab.w * (brdTab.visW / 2), brdTab.h * (brdTab.visH + .35),
+            "center", 1, 0, 1, 1,
+            0, gCol.yellow, false, true, 1, 1.3)
+        -- backdrop
+        effect.newTextEffect(sts.textClr, "All CLEAR!!", brdTab.w * (brdTab.visW / 2), brdTab.h * (brdTab.visH + .35),
+            "center", 1, -0.3, 0, 2,
+            0, gCol.yellow, false, true, 1, 1.5)
     end
 
     -- "an unhinged score formula"
     -- line clear spin
+
+    local spinNoClr =
+        (plyVar.spinReward == 1) and 100 * sts.lv or
+        (plyVar.spinReward == 2) and 400 * sts.lv or 0
+
     if plyVar.spinReward > 0 and plyVar.isAlrRot then
         if not cAnim then
             tClear(sts.lClearUI)
@@ -396,21 +443,27 @@ function states.lineReward(cAnim, plyVar, sts, mtrxTab, brdTab, settings)
 
         -- base scores, added with line clear formula
         -- mini spin
-        --TODO: Rebalance score formula
-        if plyVar.spinReward == 1 then
-            sts.scr = sts.scr + (100 * sts.lv)
-        elseif plyVar.spinReward == 2 then
-            -- normal spin
-            sts.scr = sts.scr + (400 * sts.lv)
-        end
+        sts.scr = sts.scr + spinNoClr
 
         sts.spinT = sts.spinT + 1
         if not (sts.lineClr > 0) then
+            tClear(sts.textEfct)
+
+            effect.newTextEffect(sts.textEfct, "+" .. spinNoClr,
+                brdTab.w * (brdTab.visW + 0.85),
+                brdTab.h * (brdTab.visH - 0.4), "center", 1, 0, 0.75, 1,
+                0, { 1, 1, 1 }, false)
+            effect.newTextEffect(sts.textEfct, "+" .. spinNoClr,
+                brdTab.w * (brdTab.visW + 0.85),
+                brdTab.h * (brdTab.visH - 0.4), "center", 1, 0, 0, 3,
+                0, gCol.yellow, false)
             print("-------= spinReward: " .. plyVar.spinReward .. " (no line clr.) =-------")
         end
     end
 
+
     -- events after line clears
+    --TODO: Rebalance score formula
     if cAnim then
         print("lines: " .. sts.lineClr)
         sts.comb = sts.comb + 1
@@ -420,14 +473,15 @@ function states.lineReward(cAnim, plyVar, sts, mtrxTab, brdTab, settings)
         newLClrUI(sts.lClearUI, sts.lineClr, plyVar.currBlk, 0.5, 0.65, -28)
 
         -- line clear spin
-        if plyVar.spinReward > 0 and plyVar.isAlrRot then
-            local reward = (plyVar.spinReward == 2) and (((400 * sts.lineClr) * sts.lv) * (sts.strk + 1)) or
-                (((100 * sts.lineClr) * sts.lv) * (sts.strk + 1))
+        local spnReward =
+            (plyVar.spinReward == 2) and (((400 * sts.lineClr) * sts.lv) * (sts.strk + 1)) or
+            (plyVar.spinReward == 1) and (((100 * sts.lineClr) * sts.lv) * (sts.strk + 1)) or 0
 
+        if plyVar.spinReward > 0 and plyVar.isAlrRot then
             newLClrUI(sts.lClearAftrImg, sts.lineClr, plyVar.currBlk, 5, 10)
             newLClrUI(sts.lClearUI, "T", "T", 0.5, 0.65, -28)
 
-            sts.scr = sts.scr + reward
+            sts.scr = sts.scr + spnReward
             if sts.lineClr == 1 then
                 sts.clr.spinTS = sts.clr.spinTS + 1
             elseif sts.lineClr == 2 then
@@ -439,7 +493,7 @@ function states.lineReward(cAnim, plyVar, sts, mtrxTab, brdTab, settings)
 
             print("-------= spinReward: " ..
                 plyVar.spinReward ..
-                " scr: " .. reward .. " (line clr.) =-------")
+                " scr: " .. spnReward .. " (line clr.) =-------")
         end
 
         if sts.lineClr == 1 then
@@ -478,29 +532,26 @@ function states.lineReward(cAnim, plyVar, sts, mtrxTab, brdTab, settings)
             comboRwd = 0
         end
 
-        sts.scr = sts.scr + (((200 + (200 * sts.lineClr)) + comboRwd + strkRwd) * sts.lv)
+        local gReward = (((200 + (200 * sts.lineClr)) + comboRwd + strkRwd) * sts.lv)
+
+        sts.scr = sts.scr + gReward
+
+        effect.newTextEffect(sts.textEfct, "+" .. gReward + spnReward + spinNoClr + allClr,
+            brdTab.w * (brdTab.visW + 0.85),
+            brdTab.h * (brdTab.visH - 0.4), "center", 1, 0, 0.75, 1,
+            0, { 1, 1, 1 }, false)
+        effect.newTextEffect(sts.textEfct, "+" .. gReward + spnReward + spinNoClr + allClr,
+            brdTab.w * (brdTab.visW + 0.85),
+            brdTab.h * (brdTab.visH - 0.4), "center", 1, 0, 0, 3,
+            0, gCol.yellow, false)
 
         if sts.line > sts.nxtLines then
-            sts.lv = sts.lv + 1
-
-            -- gravity increase function
-            if game.isGravityInc then
-                if sts.lv < #gTable.grav then
-                    plyVar.grav = gTable.grav[sts.lv]
-                    print("increased gravity (grav: " .. plyVar.grav .. ")")
-                else
-                    plyVar.grav = 0
-                    if plyVar.gMult < #gTable.gravMult then
-                        plyVar.gMult = plyVar.gMult + 1
-                        print("increased gravity multiplier (gMult: " .. plyVar.gMult .. ")")
-                    end
-                end
-            end
-
-            sts.nxtLines = sts.nxtLines + 10
+            states.adjLvl(1, plyVar, sts, brdTab)
         end
+        
         sts.lineClr = 0
         plyVar.spinReward = 0
+        allClr = 0
         cAnim = false
         print("---------- cAnim: " .. tostring(cAnim) .. " ----------")
     else
@@ -512,34 +563,22 @@ end
 -- gravity function
 function states.gravUpd(ply, gMtrx, blocks, gBoard, settings, stats, dt)
     if not game.isCountdown then
-        local yInc = 1 + gTable.gravMult[ply.gMult]
         local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
-        local yGap = lowestY - ply.y
-        if ply.gTimer < ply.grav and ply.y ~= lowestY and not game.isInstantGrav then
-            if not ply.isHDrop and not game.noGrav then
-                ply.gTimer = ply.gTimer + dt
-                ply.lDTimer = 0
-            end
+        local gUpd = states.frameStep(ply.grav, settings.fpsTarget)
+
+        if lowestY - ply.y >= ply.grav and not game.isInstantGrav then
+            ply.y = ply.y + dt * gUpd
             ply.isAlrRot = false
         else
-            if not ply.isHDrop then
-                ply.gTimer = 0
-            end
-            if ply.y ~= lowestY then
-                if not game.noGrav then
-                    if yGap >= yInc and not game.isInstantGrav then
-                        ply.y = ply.y + yInc
-                    else
-                        ply.y = lowestY
-                    end
-                end
+            ply.y = lowestY
+            if floor(ply.y) ~= lowestY then
                 ply.lDTimer = 0
             else
                 -- lock piece if player reached move limit
                 if ply.moveR > ply.mRLimit or ply.moveRBlk > ply.mRBLimit then
                     if not ply.isHDrop then
-                        ply.lDTimer = 0
-                        states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
+                        ply.lDTimer = ply.lDTimer - ply.lDelay
+                        states.bAdd(ply.x, floor(ply.y), blocks, ply, gMtrx, gBoard, settings, stats)
                         if not game.isFail then
                             initvars.plyInit(ply)
                             ply.isEnDly = true
@@ -551,7 +590,7 @@ function states.gravUpd(ply, gMtrx, blocks, gBoard, settings, stats, dt)
                         if ply.lDTimer < ply.lDelay then
                             ply.lDTimer = ply.lDTimer + dt
                         else
-                            states.bAdd(ply.x, ply.y, blocks, ply, gMtrx, gBoard, settings, stats)
+                            states.bAdd(ply.x, floor(ply.y), blocks, ply, gMtrx, gBoard, settings, stats)
 
                             if not game.isFail then
                                 initvars.plyInit(ply)
@@ -684,7 +723,7 @@ end
 
 -- game fail detection
 function states.isGFail(plyVar, blkTab, brdTab, mtrxTab)
-    if not states.bMove(plyVar, blkTab, brdTab, plyVar.x, plyVar.y, plyVar.bRot, mtrxTab) then
+    if not states.bMove(plyVar, blkTab, brdTab, plyVar.x, floor(plyVar.y), plyVar.bRot, mtrxTab) then
         return true
     end
 end

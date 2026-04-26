@@ -17,37 +17,40 @@ local lg, lw, lk, lm = love.graphics, love.window, love.keyboard, love.mouse
 local lt, le         = love.timer, love.event
 local ls             = love.system
 
-local wWd, wHg       = lg.getWidth(), lg.getHeight()
+
+local wWd, wHg  = lg.getWidth(), lg.getHeight()
 
 -- libraries & core functions
-local tClear         = require "lua.tClear"
-local lerp           = require "lua.lerp"
-local gTable         = require "lua.tables"
-local kOver          = require "lua.kOver"
-local tInfo          = require "lua.textInfo"
-local cFlash         = require "lua.colFlash"
-local button         = require "lua.button"
-local keys           = require "lua.default.keys"
-local uiVars         = require "lua.default.uiVars"
-local restartUI      = require "lua.restartUI"
-local stats          = require "lua.default.stats"
-local gCol           = require "lua.gCol"
-local gfx            = require "lua.game.gfx"
-local effect         = require "lua.game.effect"
-local initvars       = require "lua.game.initvars"
-local gStyle         = require "lua.game.gStyle"
-local records        = require "lua.default.records"
-local save           = require "lua.game.save"
-local ctrl           = require "lua.game.ctrl"
-local boardGoal      = require "lua.scenes.boardGoal"
-local countdown      = require "lua.scenes.countdown"
+local tClear    = require "lua.tClear"
+local lerp      = require "lua.lerp"
+local gTable    = require "lua.tables"
+local kOver     = require "lua.kOver"
+local tInfo     = require "lua.textInfo"
+local cFlash    = require "lua.colFlash"
+local button    = require "lua.button"
+local keys      = require "lua.default.keys"
+local uiVars    = require "lua.default.uiVars"
+local restartUI = require "lua.restartUI"
+local stats     = require "lua.default.stats"
+local gCol      = require "lua.gCol"
+local gfx       = require "lua.game.gfx"
+local effect    = require "lua.game.effect"
+local initvars  = require "lua.game.initvars"
+local gStyle    = require "lua.game.gStyle"
+local records   = require "lua.default.records"
+local save      = require "lua.game.save"
+local states    = require "lua.game.states"
+
+
+local ctrl      = require "lua.game.ctrl"
+local boardGoal = require "lua.scenes.boardGoal"
+local countdown = require "lua.scenes.countdown"
+local cFObj     = require "lua.scenes.cFObj"
 
 -- external libraries
-local tick           = require "libs.tick"
+local tick      = require "libs.tick"
 
-local states         = require "lua.game.states"
-
-local fonts          = {
+local fonts     = {
     ui = lg.newFont("/assets/fonts/monogram-extended.TTF", 32, "mono"),
     smol = lg.newFont("/assets/fonts/monogram-extended.TTF", 24, "mono"),
     beeg = lg.newFont("/assets/fonts/monogram-extended.TTF", 64, "mono"),
@@ -55,73 +58,37 @@ local fonts          = {
     othr = lg.newFont("/assets/fonts/Picopixel.ttf", 14, "mono")
 }
 
-local uiIcons        = lg.newImageFont("/assets/img/icons.png", "P")
+local uiIcons   = lg.newImageFont("/assets/img/icons.png", "P")
 
 -- textures
-local tex            = {
+local tex       = {
     danger = lg.newImage("/assets/img/danger.png")
 }
 
-fonts.beeg:setLineHeight(0.8)
-
-for _, f in pairs(fonts) do
-    f:setFilter("nearest", "nearest")
-end
-
-uiIcons:setFilter("nearest", "nearest")
-
-for _, t in pairs(tex) do
-    t:setFilter("nearest", "nearest")
-end
-
 -- for text popups
-local textInfo = {}
+local textInfo  = {}
 
 -- game variables
-local game = require("lua.default.game")
-local settings = require("lua.default.settings")
-local ply = require("lua.default.ply")
+local game      = require("lua.default.game")
+local settings  = require("lua.default.settings")
+local ply       = require("lua.default.ply")
+local gMtrx     = {}
+local gBoard    = require "lua.default.gBoard"
 
-if arg[2] == "debug" then
-    settings.isDebug = true
-else
-    settings.isDebug = false
-end
+local gColD     = require "lua.scenes.gColD"
+local blocks    = gTable.blocks[string.lower(settings.rotSys)]
 
-local gMtrx = {}
-local gBoard = require "lua.default.gBoard"
+local overlays  = (not settings.aKOverPos) and require "lua.scenes.overlays"[1] or require "lua.scenes.overlays"[2]
 
-for y = 1, gBoard.gH do
-    table.insert(gMtrx, {})
-    for _ = 1, gBoard.gW do
-        table.insert(gMtrx[y], 0)
-    end
-end
+local cFStrk    = cFObj.col(gColD).cFStrk
+local cFCb      = cFObj.col(gColD).cFCb
+local cFGoal    = cFObj.col(gColD).cFGoal
+local cFAC      = cFObj.col(gColD).cFAC
 
-local gColD = {
-    red = { gCol.red[1] - .35, gCol.red[2] - .35, gCol.red[3] - .35 },
-    green = { gCol.green[1] - .35, gCol.green[2] - .35, gCol.green[3] - .35 },
-    purple = { gCol.purple[1] - .35, gCol.purple[2] - .35, gCol.purple[3] - .35 },
-    orange = { gCol.orange[1] - .35, gCol.orange[2] - .35, gCol.orange[3] - .35 },
-    blue = { gCol.blue[1] - .35, gCol.blue[2] - .35, gCol.blue[3] - .35 },
-    yellow = { gCol.yellow[1] - .35, gCol.yellow[2] - .35, gCol.yellow[3] - .35 },
-    lBlue = { gCol.lBlue[1] - .35, gCol.lBlue[2] - .35, gCol.lBlue[3] - .35 },
-    white = { gCol.white[1] - .35, gCol.white[2] - .35, gCol.white[3] - .35 },
-}
+local cFSpn     = cFObj.col(gColD).cFSpn
 
-local blocks = gTable.blocks.ars
-
-local overlays = (not settings.aKOverPos) and require "lua.scenes.overlays"[1] or require "lua.scenes.overlays"[2]
-
-local cFStrk = cFlash.new(gCol.yellow, gCol.blue, .05)
-local cFCb = cFlash.new(gCol.yellow, gCol.white, .05)
-local cFGoal = cFlash.new(gCol.red, gCol.yellow, .05)
-local cFAC = cFlash.new(gColD.yellow, gColD.lBlue, .1)
-
-local cFSpn = cFlash.new(gColD.lBlue, gColD.purple, .1)
-
-local cFFail = cFlash.new(gCol.red, gCol.orange, .05)
-local cFFBG = cFlash.new(gColD.red, gColD.orange, .75)
+local cFFail    = cFObj.col(gColD).cFFail
+local cFFBG     = cFObj.col(gColD).cFFBG
 
 -- pause buttons
 local pauseYOff = 70
@@ -148,7 +115,7 @@ local pauseBtns = {
         gCol.bg, { gCol.bg[1] + 0.1, gCol.bg[2] + 0.1, gCol.bg[3] + 0.1 }, gCol.white, gCol.red, true)
 }
 
-local gameBtns = {
+local gameBtns  = {
     button.new("P", uiIcons, 20, 20, 35, 35,
         function()
             game.isPaused = true
@@ -171,12 +138,30 @@ function IsNan(x)
 end
 
 function love.load()
-    lg.clear()
-    lg.setColor(gCol.bg)
-    lg.rectangle("fill", 0, 0, wWd, wHg)
-    lg.setColor(1, 1, 1, 1)
-    lg.printf("Loading..", fonts.ui, 0, wHg / 2, wWd, "center")
-    love.graphics.present()
+    fonts.beeg:setLineHeight(0.8)
+
+    for _, f in pairs(fonts) do
+        f:setFilter("nearest", "nearest")
+    end
+
+    uiIcons:setFilter("nearest", "nearest")
+
+    for _, t in pairs(tex) do
+        t:setFilter("nearest", "nearest")
+    end
+
+    for y = 1, gBoard.gH do
+        table.insert(gMtrx, {})
+        for _ = 1, gBoard.gW do
+            table.insert(gMtrx[y], 0)
+        end
+    end
+
+    if arg[2] == "debug" then
+        settings.isDebug = true
+    else
+        settings.isDebug = false
+    end
 
     -- for fixed time
     tick.rate = 1 / settings.fpsTarget
@@ -205,6 +190,8 @@ function love.load()
             5)
     end
 
+    game.prevShake = game.shakeInt
+
     -- initialize next queue
     states.bagInit(ply, settings)
     states.addHistory(ply, settings)
@@ -225,6 +212,13 @@ function love.load()
     records = saveF
 
     lg.setBackgroundColor(gCol.bg)
+
+    lg.clear()
+    lg.setColor(gCol.bg)
+    lg.rectangle("fill", 0, 0, wWd, wHg)
+    lg.setColor(1, 1, 1, 1)
+    lg.printf("Loading..", fonts.ui, 0, wHg / 2, wWd, "center")
+    love.graphics.present()
 end
 
 function love.quit()
@@ -323,9 +317,6 @@ function love.keypressed(k)
 
         if k == keys.hDrop then
             ctrl.hDrop(ply, stats, blocks, gMtrx, gBoard, settings)
-            if ply.isHDrop then
-                ply.isHDrop = false
-            end
         end
 
         if k == keys.ccw then
@@ -346,7 +337,7 @@ function love.keypressed(k)
 
         -- hold key function
         if k == keys.hold and game.useHold then
-            ctrl.hold(ply, stats, settings)
+            ctrl.hold(ply, stats)
         end
 
         if k == "y" then
@@ -399,6 +390,10 @@ function love.keypressed(k)
 
         if k == "e" then
             states.bagReset(ply, settings)
+            ply.currBlk = ply.next[1]
+            if not game.isCountdown then
+                states.initBlk(ply)
+            end
             initvars.plyInit(ply)
             initvars.mtrxClr(gMtrx)
             stats.clrDbg = stats.clrDbg + 1
@@ -406,7 +401,18 @@ function love.keypressed(k)
 
         if k == "backspace" then
             states.addRows("g", math.floor(love.math.random(1, gBoard.visW)), math.floor(love.math.random(1, 4)), gMtrx,
-                gBoard, ply, blocks)
+                gBoard, ply, blocks, true)
+        end
+
+        if k == "[" then
+            if stats.lv > 1 then
+                states.adjLvl(-1, ply, stats, gBoard)
+                initvars.plyInit(ply)
+            end
+        end
+        if k == "]" then
+            states.adjLvl(1, ply, stats, gBoard)
+            initvars.plyInit(ply)
         end
 
         if k == "9" then
@@ -469,6 +475,7 @@ function love.focus(f)
     end
 end
 
+-- local time = 0
 function love.update(dt)
     -- workaround since ui won't update on old versions
     if mj <= 11 and mn <= 4 then
@@ -487,6 +494,20 @@ function love.update(dt)
     else
         stats.timeDisp = "00:00.00"
     end
+
+    -- if not game.isCountdown and not game.isPauseDelay and not game.isPaused then
+    --     if time < 3 then
+    --         time = time + dt
+    --     else
+    --         time = 0
+    --     end
+    -- end
+
+    -- if time > 3 and not ply.isClear then
+    --     states.addRows("g", math.floor(love.math.random(1, gBoard.visW)), math.floor(love.math.random(1, 4)), gMtrx,
+    --         gBoard, ply, blocks, true)
+    --     time = 0
+    -- end
 
     if game.isPauseDelay then
         if stats.pTime >= 1 then
@@ -615,6 +636,9 @@ function love.update(dt)
                 stats.qrTime = 0
             end
 
+            effect.updTextEffect(stats.textEfct, dt)
+            effect.updTextEffect(stats.textClr, dt)
+
             -- line delay function
             if ply.isLnDly then
                 if ply.lnDlyTmr < ply.lnDly then
@@ -654,9 +678,13 @@ function love.update(dt)
                     ply.enDlyTmr = 0
                     ply.isEnDly = false
 
+                    ply.isHDrop = false
+
                     if settings.useIRS and ply.isIRS and ply.enDly > 0 then
                         initvars.checkIRS(ply, blocks, settings, game, keys)
                     end
+
+                    ply.isClear = false
                 end
             else
                 ply.enDlyTmr = 0
@@ -777,9 +805,8 @@ function love.update(dt)
             if #stats.lPart > 0 then
                 tClear(stats.lPart)
             end
-
-            if ply.isHDrop then
-                ply.isHDrop = false
+            if #stats.textClr > 0 then
+                tClear(stats.textClr)
             end
         end
 
@@ -789,7 +816,11 @@ function love.update(dt)
         end
 
         if settings.shakeBoard then
-            effect.updShake(ply, settings, game, gBoard, dt)
+            effect.updShake(ply, settings, gBoard, dt)
+        end
+
+        if settings.shakeBoard then
+            effect.updScreenShake(game, dt)
         end
 
         -- for fail text
@@ -822,6 +853,12 @@ function love.draw()
     -- game board
     lg.push()
     lg.scale(settings.scale, settings.scale)
+
+    if game.isScreenShake then
+        lg.translate(love.math.random(-game.shakeInt, game.shakeInt) + settings.scale,
+            love.math.random(-game.shakeInt, game.shakeInt) + settings.scale)
+    end
+
     lg.translate(
         ((wWd / (2 * settings.scale)) - ((gBoard.w * gBoard.visW) / 2)) +
         lerp.linear(0, (ply.sW / 3.5) * settings.scale, ply.shakeXTime),
@@ -880,24 +917,29 @@ function love.draw()
         boardGoal.draw(game, stats.line, gBoard, gCol.yellow, cFGoal.col[cFGoal.index])
 
         -- current block
-        local lowestY = states.lowestCells(ply, gMtrx, blocks, gBoard)
         if not ply.isLnDly and not ply.isEnDly and not game.isCountdown then
-            -- "motion sickness"
-            --TODO: Fix broken smooth fall effect
-            local bYPersp = (settings.smoothFall) and
-                lerp.linear(0, lowestY, (ply.y + (ply.gTimer / ply.grav)) / lowestY) or
-                ply.y
-            gfx.dBPersp(blocks[ply.currBlk][ply.bRot], ply.x, bYPersp, settings, ply, gBoard, game, true,
+            local bY = (settings.smoothFall) and ply.y or math.floor(ply.y)
+
+            if not game.isFail or game.showFailColors then
+                if ply.isAlreadyHold then
+                    lg.push()
+                    lg.translate(gBoard.w * ply.x, gBoard.h * bY)
+                    lg.setColor(1, 1, 1, lerp.linear(1, 0, ply.lDTimer / ply.lDelay))
+                    gfx.dOutline(blocks[ply.currBlk][ply.bRot], game, gBoard, 2, true, true)
+                    lg.pop()
+                end
+            end
+
+            gfx.dBPersp(blocks[ply.currBlk][ply.bRot], ply.x, bY, settings, ply, gBoard, game, true,
                 ply.lDTimer / ply.lDelay)
+
             for y, _ in ipairs(blocks[ply.currBlk][ply.bRot]) do
                 for x, blk in ipairs(blocks[ply.currBlk][ply.bRot][y]) do
-                    local bYMain = (settings.smoothFall) and
-                        lerp.linear(0, lowestY, (ply.y + (ply.gTimer / ply.grav)) / lowestY) or ply.y
                     if blk ~= 0 then
-                        gfx.dBlocks(blk, x + ply.x, y + bYMain, ply, gBoard, settings, game, false, false, false, true)
+                        gfx.dBlocks(blk, x + ply.x, y + bY, ply, gBoard, settings, game, false, false, false, true)
                     else
                         if settings.showEmpty then
-                            gfx.dBlocks(blk, x + ply.x, y + ply.y, ply, gBoard, settings, game, false, false, false, true,
+                            gfx.dBlocks(blk, x + ply.x, y + bY, ply, gBoard, settings, game, false, false, false, true,
                                 false, nil, nil, tex.danger)
                         end
                     end
@@ -934,6 +976,17 @@ function love.draw()
     countdown.draw(gBoard, gColD, fonts, game, true)
     lg.pop()
     countdown.draw(gBoard, gColD, fonts, game, false)
+
+    -- points txt.
+    lg.push()
+    lg.translate(2, 2)
+    effect.drwTextEffect(stats.textEfct, fonts.othr, game, -0.75)
+    lg.pop()
+
+    effect.drwTextEffect(stats.textEfct, fonts.othr, game, 0)
+
+    -- all clear txt.
+    effect.drwTextEffect(stats.textClr, fonts.othr, game, 0)
 
     -- game ui
     gStyle.failCol(game, stats, gCol, false, true)
@@ -1120,13 +1173,18 @@ function love.draw()
     -- stats in fail screen
     if game.isFail then
         if game.statsIndex ~= 0 then
+            lg.setColor(gCol.bgB[1], gCol.bgB[2], gCol.bgB[3], 0.25)
             if game.statsIndex == 1 then
+                lg.rectangle("fill", 0, wHg - 55, wWd, 55)
+                lg.setColor(1, 1, 1, 1)
                 lg.printf({ gCol.gray, "< " .. game.statsIndex .. " >" }, fonts.othr, 0, wHg - 45, wWd, "center")
                 lg.setColor(gCol.bg)
                 gfx.dPStats(2, 2, wWd, wHg, stats, records, fonts, false)
                 lg.setColor(1, 1, 1, 1)
                 gfx.dPStats(0, 0, wWd, wHg, stats, records, fonts, false)
             else
+                lg.rectangle("fill", 0, wHg - 70, wWd, 70)
+                lg.setColor(1, 1, 1, 1)
                 lg.printf({ gCol.gray, "< " .. game.statsIndex .. " >" }, fonts.othr, 0, wHg - 60, wWd, "center")
                 lg.setColor(gCol.bg)
                 gfx.dPStats(2, 2, wWd, wHg, stats, records, fonts, true)
@@ -1183,7 +1241,7 @@ function love.draw()
     end
 
     lg.setColor(1, 1, 1, 1)
-    tInfo.draw(textInfo)
+    tInfo.draw(textInfo, settings.scale - 1)
 
     -- debug
     if settings.isDebug then
@@ -1212,7 +1270,10 @@ function love.draw()
                 " / " ..
                 ply.shakeYTime ..
                 " | " .. tostring(ply.isShakeX) .. "/" .. tostring(ply.isShakeY) .. "\nsH: " .. ply.sH ..
+                "\nscreenShake: " .. tostring(game.isScreenShake) .. " , " .. game.sTimer .. " / " .. game.sTLen ..
+                "\nshakeInt: " .. game.shakeInt .. " / " .. game.prevShake ..
                 "\nlineClrTemp: " .. ply.lineClrTemp ..
+                "\nisClear: " .. tostring(ply.isClear) ..
                 "\nlEffect: " ..
                 #stats.lEffect ..
                 "\nlkEfct: " ..
@@ -1221,14 +1282,9 @@ function love.draw()
                 tostring(game.useHold) .. "\nisHScore: " .. tostring(game.isHScore) ..
                 "\nlowestCells: " ..
                 states.lowestCells(ply, gMtrx, blocks, gBoard) ..
-                "\nyGap: " ..
-                states.lowestCells(ply, gMtrx, blocks, gBoard) - ply.y .. " | " .. 1 + gTable.gravMult[ply.gMult] ..
-                " (" ..
-                tostring(states.lowestCells(ply, gMtrx, blocks, gBoard) - ply.y >= 1 + gTable.gravMult[ply.gMult]) ..
-                ")" ..
                 "\nquickMove: " ..
-                states.quickMove(-1, ply, gMtrx, blocks, gBoard, game) ..
-                " / " .. states.quickMove(1, ply, gMtrx, blocks, gBoard, game) ..
+                states.quickMove(-1, ply, gMtrx, blocks, gBoard) ..
+                " / " .. states.quickMove(1, ply, gMtrx, blocks, gBoard) ..
                 "\nnext: " ..
                 table.concat(ply.next, " ,") ..
                 "\nnHist: " ..
@@ -1244,6 +1300,7 @@ function love.draw()
                 "\nvisW: " .. gBoard.visW .. "\nvisH: " .. gBoard.visH ..
                 "\nbRot: " ..
                 ply.bRot .. " / " .. #blocks[ply.currBlk] .. "\nd: " .. ply.d ..
+                "\nlastKick: " .. ply.lastKick ..
                 "\ncurrBlk: " ..
                 ply.currBlk .. " / " .. #blocks ..
                 "\ndasTimer: " ..
@@ -1252,9 +1309,7 @@ function love.draw()
                 ply.arrTimer .. " / " .. ply.arr ..
                 "\nsdrTimer: " ..
                 ply.sdrTimer .. " / " .. ply.sdr ..
-                "\ngTimer: " ..
-                ply.gTimer .. " / " .. ply.grav ..
-                "\ngMult: " .. gTable.gravMult[ply.gMult] ..
+                "\ngrav: " .. ply.grav ..
                 "\nnoGrav: " .. tostring(game.noGrav) ..
                 "\nlDTimer: " ..
                 ply.lDTimer .. " / " .. ply.lDelay .. "\nlnDlyTmr: " .. ply.lnDlyTmr .. " / " .. ply.lnDly ..
@@ -1282,8 +1337,9 @@ function love.draw()
                 "\nsg: " ..
                 stats.clr.sgl ..
                 "\ndb: " ..
-                stats.clr.dbl .. "\ntp: " .. stats.clr.trp .. "\nqd: " .. stats.clr.qd .. "\n ac: " .. stats.clr.ac
-                .. "\ncomb: " .. stats.comb .. "\nstrk: " .. stats.strk,
+                stats.clr.dbl .. "\ntp: " .. stats.clr.trp .. "\nqd: " .. stats.clr.qd .. "\n ac: " .. stats.clr.ac ..
+                "\nnxtLines: " .. stats.nxtLines ..
+                "\ncomb: " .. stats.comb .. "\nstrk: " .. stats.strk,
                 fonts.othr, 0, 10, wWd - 10, "right")
         else
             lg.print(

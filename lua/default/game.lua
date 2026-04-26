@@ -2,7 +2,7 @@
 local game = {
     isPaused = false,
     isPauseDelay = false,
-    
+
     isCountdown = true,
     cTimer = 0,
     -- countdown length
@@ -24,6 +24,15 @@ local game = {
     isInstantGrav = false,
     showGoalLines = true,
     noGrav = false,
+
+    -- leave unchanged
+    isScreenShake = false,
+    sTimer = 0,
+    sTLen = 0,
+
+    -- shake intensity
+    shakeInt = 2,
+    prevShake = 0,
 
     statsIndex = 0, -- 0, 1, 2
 

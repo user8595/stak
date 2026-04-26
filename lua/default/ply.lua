@@ -2,14 +2,15 @@ local gTable = require "lua.tables"
 local gBoard = require "lua.default.gBoard"
 
 local ply = {
-    x = 3,
+    x = math.floor(gBoard.gW / 2) - 2,
     y = 0,
-    initX = 3,
+    initX = math.floor(gBoard.gW / 2) - 2,
     initY = 0,
     currBlk = 1,
     bRot = 1,
 
-    d = 1,          -- 1: ccw, 2: cw
+    d = 1,          -- 1: ccw, 2: cw,
+    lastKick = 0,
 
     spinReward = 1, -- 0: no spin, 1: mini spins, 2: normal spins
     next = {},
@@ -20,6 +21,10 @@ local ply = {
     cBlkTemp = 0,
     -- tempoary value for shake effect
     lineClrTemp = 0,
+
+    -- for (some) line clear events 
+    isClear = false,
+
     isAlreadyHold = false,
     isAlrRot = false,
 
@@ -53,9 +58,7 @@ local ply = {
     enDly = 0 / 1000,
 
     -- gravity
-    gTimer = 0,
     grav = gTable.grav[1],
-    gMult = 1,
 
     moveR = 0,
     mRLimit = 15,
