@@ -24,6 +24,7 @@ love.run = function()
     error('love.timer is required for tick')
   end
 
+  ---@diagnostic disable-next-line
   if love.load then love.load(love.arg.parseGameArguments(arg), arg) end
   timer.step()
   local lastframe = 0
@@ -45,6 +46,7 @@ love.run = function()
             end
           end
 
+          ---@diagnostic disable-next-line
           love.handlers[name](a, b, c, d, e, f)
         end
       end
@@ -56,10 +58,10 @@ love.run = function()
     -- https://github.com/bjornbytes/tick/pull/11
     -- maybe...
     --TODO: Add arg. option to switch to non-patch version
-    if tick.framerate then 
+    if tick.framerate then
       local affinity = math.min(0.85, 0.96655 - 0.0019425 * tick.framerate)
       while timer.getTime() - lastframe < 1 / tick.framerate do
-        if timer.getTime() - lastframe <  1 / tick.framerate * affinity then timer.sleep(0.001) end
+        if timer.getTime() - lastframe < 1 / tick.framerate * affinity then timer.sleep(0.001) end
       end
     end
 

@@ -9,7 +9,7 @@ local ply = {
     currBlk = 1,
     bRot = 1,
 
-    d = 1,          -- 1: ccw, 2: cw,
+    d = 1, -- 1: ccw, 2: cw,
     lastKick = 0,
 
     spinReward = 1, -- 0: no spin, 1: mini spins, 2: normal spins
@@ -22,7 +22,7 @@ local ply = {
     -- tempoary value for shake effect
     lineClrTemp = 0,
 
-    -- for (some) line clear events 
+    -- for (some) line clear events
     isClear = false,
 
     isAlreadyHold = false,
@@ -33,9 +33,10 @@ local ply = {
     das = 95 / 1000,
     dasTimer = 0,
 
-    --TODO: Add cut delay
-    dcd = 0,
-    dcdTimer = 0,
+    --TODO: Add das cut delay
+    isCutDly = false,
+    cutDly = 0,
+    cutDlyTmr = 0,
 
     -- auto repeat duration delay
     arr = 0 / 1000,

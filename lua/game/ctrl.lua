@@ -199,10 +199,7 @@ function ctrl.hDrop(ply, stats, blocks, gMtrx, gBoard, settings)
 
         ply.lDTimer = 0
 
-        if not ply.isLnDly then
-            ply.isEnDly = true
-        end
-        initvars.plyInit(ply)
+        states.addStates(ply, gBoard, gMtrx, blocks, stats, settings)
     end
 end
 

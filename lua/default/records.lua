@@ -6,6 +6,7 @@ return {
         lv = 0,
         line = 0,
         finesse = 0,
+        pieces = 0,
         pps = 0,
         maxpps = 0
     },
@@ -13,6 +14,7 @@ return {
     bestSpr = {
         time = 0,
         finesse = 0,
+        pieces = 0,
         pps = 0,
         maxpps = 0
     }

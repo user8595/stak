@@ -39,6 +39,7 @@ function initvars.gameInit(plyVar, sts, gameVar)
     plyVar.grav = gTable.grav[1]
     -- index table
     plyVar.gMult = 1
+    plyVar.isHDrop = false
     plyVar.isAlreadyHold = false
     plyVar.isAlrRot = false
     plyVar.isLnDly = false
@@ -85,6 +86,7 @@ function initvars.gameInit(plyVar, sts, gameVar)
     tClear(sts.hDEfct)
     tClear(sts.textEfct)
     tClear(sts.textClr)
+    tClear(sts.gQueue)
 end
 
 function initvars.mtrxClr(mtrxTab)
@@ -96,6 +98,7 @@ function initvars.mtrxClr(mtrxTab)
 end
 
 function initvars.restartGame(ply, game, stats, gMtrx, settings, states)
+    game.isQRestart = false
     game.isPaused = false
     game.isFail = false
     game.showFailColors = false

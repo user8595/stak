@@ -1,6 +1,6 @@
 -- high score as of writing: 21850500, lv 110, 1100 lines, 35:33.42 time (no gravity)
 -- highest score as of writing: 92637529, lv 222, 2218 lines, 65:08.13 (60hz w/ gravity, srs)
--- fastest 40l as of writing: 00:46.69, 2.88pps
+-- fastest 40l as of writing: 00:43.28, 2.36pps
 
 -- i think i like this game
 
@@ -8,38 +8,39 @@
 -- S8, lv 8, 75 lines, 03:33.64 time (ars)
 -- GM, lv 9, 81 lines, 03:17.16 time (srs)
 
+-- #############################################################################
 -- ##### a good reminder that this game relies a LOT with 1-based indexing #####
+-- #############################################################################
 -- and the sky is blue
 
 local mj, mn, rv     = love.getVersion()
 
 local lg, lw, lk, lm = love.graphics, love.window, love.keyboard, love.mouse
 local lt, le         = love.timer, love.event
-local ls             = love.system
+local ls, lmth       = love.system, love.math
 
-
-local wWd, wHg  = lg.getWidth(), lg.getHeight()
+local wWd, wHg       = lg.getWidth(), lg.getHeight()
 
 -- libraries & core functions
-local tClear    = require "lua.tClear"
-local lerp      = require "lua.lerp"
-local gTable    = require "lua.tables"
-local kOver     = require "lua.kOver"
-local tInfo     = require "lua.textInfo"
-local cFlash    = require "lua.colFlash"
-local button    = require "lua.button"
-local keys      = require "lua.default.keys"
-local uiVars    = require "lua.default.uiVars"
-local restartUI = require "lua.restartUI"
-local stats     = require "lua.default.stats"
-local gCol      = require "lua.gCol"
-local gfx       = require "lua.game.gfx"
-local effect    = require "lua.game.effect"
-local initvars  = require "lua.game.initvars"
-local gStyle    = require "lua.game.gStyle"
-local records   = require "lua.default.records"
-local save      = require "lua.game.save"
-local states    = require "lua.game.states"
+local tClear         = require "lua.tClear"
+local lerp           = require "lua.lerp"
+local gTable         = require "lua.tables"
+local kOver          = require "lua.kOver"
+local tInfo          = require "lua.textInfo"
+local cFlash         = require "lua.colFlash"
+local button         = require "lua.button"
+local keys           = require "lua.default.keys"
+local uiVars         = require "lua.default.uiVars"
+local restartUI      = require "lua.restartUI"
+local stats          = require "lua.default.stats"
+local gCol           = require "lua.gCol"
+local gfx            = require "lua.game.gfx"
+local effect         = require "lua.game.effect"
+local initvars       = require "lua.game.initvars"
+local gStyle         = require "lua.game.gStyle"
+local records        = require "lua.default.records"
+local save           = require "lua.game.save"
+local states         = require "lua.game.states"
 
 
 local ctrl      = require "lua.game.ctrl"
@@ -137,8 +138,13 @@ function IsNan(x)
     return false
 end
 
+local seedVal
+local lvlDbg = 0
 function love.load()
     fonts.beeg:setLineHeight(0.8)
+
+    -- lmth.setRandomSeed(0)
+    seedVal = lmth.getRandomSeed()
 
     for _, f in pairs(fonts) do
         f:setFilter("nearest", "nearest")
@@ -203,6 +209,7 @@ function love.load()
     for k, _ in pair(records) do
         for l, v in pair(records[k]) do
             if v ~= saveF[k][l] and type(saveF[k][l]) == "nil" then
+                print("[WARN] --## found empty data (" .. k .. "." .. l .. "), using placeholder value (" .. 0 .. ").. ##--")
                 saveF[k][l] = 0
             end
         end
@@ -404,13 +411,20 @@ function love.keypressed(k)
                 gBoard, ply, blocks, true)
         end
 
+        if k == "1" then
+            states.addGarb(stats.gQueue, "g", lmth.random(1, gBoard.visW), math.random(1, 4), stats.garbH, math.random(.5, 1))
+        end
+
         if k == "[" then
+            lvlDbg = lvlDbg + 1
             if stats.lv > 1 then
                 states.adjLvl(-1, ply, stats, gBoard)
                 initvars.plyInit(ply)
             end
         end
+
         if k == "]" then
+            lvlDbg = lvlDbg + 1
             states.adjLvl(1, ply, stats, gBoard)
             initvars.plyInit(ply)
         end
@@ -482,6 +496,9 @@ function love.update(dt)
         wWd, wHg = lg.getWidth(), lg.getHeight()
     end
 
+    -- for total garbage height
+    stats.garbH = states.getGarbHgt(stats.gQueue)
+
     -- tempoary fix with library
     if settings.useVSync then
         lw.setVSync(1)
@@ -546,7 +563,7 @@ function love.update(dt)
     if stats.line >= 40 and not game.is40LClr then
         tInfo.new(textInfo,
             "40 lines clear! (" ..
-            stats.timeDisp .. ", " .. string.format("%.2f", stats.currPPS) .. " pps, " .. stats.finesse .. "F)", 0,
+            stats.timeDisp .. ", " .. string.format("%.2f", stats.currPPS) .. " pps, " .. stats.stacks .. "P, " .. stats.finesse .. "F)", 0,
             wHg - 30, true,
             gCol.yellow, 1, 4)
         if records.bestSpr.time <= 0 then
@@ -561,6 +578,7 @@ function love.update(dt)
             records.bestSpr.pps = stats.currPPS
             records.bestSpr.maxpps = stats.maxPPS
             records.bestSpr.finesse = stats.finesse
+            records.bestSpr.pieces = stats.stacks
         end
         game.is40LClr = true
     end
@@ -610,6 +628,9 @@ function love.update(dt)
     local nan = IsNan
     stats.currPPS = (not nan(stats.stacks / stats.time)) and stats.stacks / stats.time or 0
 
+    -- key overlays
+    kOver.updKey(overlays)
+
     if not game.isPaused and not game.isPauseDelay and not game.isFail then
         if not game.isCountdown then
             stats.time = stats.time + dt
@@ -618,6 +639,9 @@ function love.update(dt)
                 stats.finesse = stats.finesse + 1
                 stats.finK = 0
             end
+
+            -- garbage queue update
+            states.updGarb(stats.gQueue, gBoard, dt)
 
             -- best score
             if stats.scr > records.bestScore.scr then
@@ -628,6 +652,7 @@ function love.update(dt)
                 records.bestScore.pps = stats.currPPS
                 records.bestScore.maxpps = stats.maxPPS
                 records.bestScore.finesse = stats.finesse
+                records.bestScore.pieces = stats.stacks
                 game.isHScore = true
             end
 
@@ -639,80 +664,16 @@ function love.update(dt)
             effect.updTextEffect(stats.textEfct, dt)
             effect.updTextEffect(stats.textClr, dt)
 
-            -- line delay function
-            if ply.isLnDly then
-                if ply.lnDlyTmr < ply.lnDly then
-                    ply.lnDlyTmr = ply.lnDlyTmr + dt
-                else
-                    print("shifted lines by -1 (lnDly: " .. ply.lnDly .. ")")
-
-                    for yPos = 1, #stats.clearedLinesYPos do
-                        states.moveCells(stats.clearedLinesYPos[yPos], gMtrx, gBoard)
-                    end
-
-                    ply.isEnDly = true
-
-                    ply.isLnDly = false
-                    ply.lnDlyTmr = 0
-                    if #stats.clearedLinesYPos > 0 then
-                        tClear(stats.clearedLinesYPos)
-                    end
-                end
-            else
-                ply.lnDlyTmr = 0
-            end
-
-            -- entry delay (are)
-            if ply.isEnDly then
-                if ply.enDlyTmr < ply.enDly then
-                    ply.enDlyTmr = ply.enDlyTmr + dt
-                else
-                    -- for hold & rotate function reserving
-                    ply.isAlreadyHold = false
-                    ply.isAlrRot = false
-
-                    -- only advance next queue bag after entry delay
-                    states.addHistory(ply, settings)
-                    states.nextQueue(ply, settings)
-
-                    ply.enDlyTmr = 0
-                    ply.isEnDly = false
-
-                    ply.isHDrop = false
-
-                    if settings.useIRS and ply.isIRS and ply.enDly > 0 then
-                        initvars.checkIRS(ply, blocks, settings, game, keys)
-                    end
-
-                    ply.isClear = false
-                end
-            else
-                ply.enDlyTmr = 0
-            end
+            states.lDlyUpd(ply, stats, gBoard, gMtrx, dt)
+            states.eDlyUpd(ply, blocks, keys, settings, dt)
 
             -- line effect
-            effect.lEUpdate(stats.lEffect, settings, dt)
+            effect.lEUpdate(stats.lEffect, settings, ply, dt)
             effect.lkUpd(stats.lkEfct, dt)
             effect.lkUpd(stats.hDEfct, dt)
             effect.lPUpdate(stats.lPart, settings, dt)
 
-            -- danger zone detection
-            if states.dangerCheck(gMtrx, gBoard) == 1 then
-                -- TODO: This is safe right?
-                if ply.dangerA <= 0.15 then
-                    ply.dangerA = tonumber(string.format("%.2f", ply.dangerA + dt))
-                elseif ply.dangerA > 0.15 then
-                    ply.dangerA = tonumber(string.format("%.2f", ply.dangerA - dt))
-                end
-            elseif states.dangerCheck(gMtrx, gBoard) == 2 then
-                if ply.dangerA < 0.25 then
-                    ply.dangerA = ply.dangerA + dt
-                end
-            else
-                if ply.dangerA > 0 then
-                    ply.dangerA = ply.dangerA - dt * 0.5
-                end
-            end
+            gfx.dangerUpd(ply, gBoard, gMtrx, states, dt)
 
             for _, blk in ipairs(gMtrx) do
                 gBoard.visW = #blk
@@ -756,9 +717,6 @@ function love.update(dt)
             end
         end
 
-        -- key overlays
-        kOver.updKey(overlays)
-
         -- ingame function
         if not ply.isLnDly and not ply.isEnDly then
             ctrl.shiftBlk(ply, blocks, gBoard, gMtrx, settings, keys, game, dt)
@@ -767,7 +725,7 @@ function love.update(dt)
                 -- soft drop
                 ctrl.sDropRepeat(ply, stats, game, gBoard, gMtrx, keys, blocks, dt)
 
-                states.gravUpd(ply, gMtrx, blocks, gBoard, settings, stats, dt)
+                states.gravUpd(ply, game, gMtrx, blocks, gBoard, settings, stats, dt)
             end
 
             -- secret grade check
@@ -829,7 +787,7 @@ function love.update(dt)
         end
     end
 
-    effect.lEUpdate(stats.failEffect, settings, dt)
+    effect.lEUpdate(stats.failEffect, settings, ply, dt)
 
     if lk.isDown("-") then
         settings.scale = settings.scale - dt
@@ -971,19 +929,19 @@ function love.draw()
     lg.line(gBoard.x + (gBoard.w * gBoard.visW), gBoard.y + gBoard.h, gBoard.x + (gBoard.w * gBoard.visW),
         gBoard.y + (gBoard.h * gBoard.visH))
 
+    --TODO: Implement garbage meter
+    gfx.dGarbMtr(stats.gQueue, game, gBoard)
+
+    -- garbage meter frame
+    lg.setColor(0.7, 0.7, 0.7, 1)
+    lg.rectangle("line", gBoard.x + gBoard.w * gBoard.visW, gBoard.y + gBoard.h, 10,
+        gBoard.h * (gBoard.visH - 1))
+
     lg.push()
     lg.translate(2, 2)
     countdown.draw(gBoard, gColD, fonts, game, true)
     lg.pop()
     countdown.draw(gBoard, gColD, fonts, game, false)
-
-    -- points txt.
-    lg.push()
-    lg.translate(2, 2)
-    effect.drwTextEffect(stats.textEfct, fonts.othr, game, -0.75)
-    lg.pop()
-
-    effect.drwTextEffect(stats.textEfct, fonts.othr, game, 0)
 
     -- all clear txt.
     effect.drwTextEffect(stats.textClr, fonts.othr, game, 0)
@@ -999,6 +957,32 @@ function love.draw()
     gStyle.failCol(game, stats, gCol, false, false)
     lg.printf(stats.line, fonts.ui, -1200, gBoard.h * (gBoard.visH - 2.75), 1200 - 20, "right")
 
+    gStyle.failCol(game, stats, gCol, not settings.disablePPSCol, false)
+    lg.printf(string.format("%.2f p/s", stats.currPPS), fonts.othr, -1200, gBoard.h * (gBoard.visH - 1.135),
+        1200 - 20,
+        "right")
+
+    -- next frame text
+    lg.push()
+    lg.translate(10, 0)
+
+    -- points txt.
+    lg.push()
+    lg.translate(2, 2)
+    effect.drwTextEffect(stats.textEfct, fonts.othr, game, -0.75)
+    lg.pop()
+
+    effect.drwTextEffect(stats.textEfct, fonts.othr, game, 0)
+
+    gStyle.failCol(game, stats, gCol, false, false)
+    if not settings.altTimerUI then
+        lg.printf(stats.timeDisp, fonts.time, gBoard.x,
+            gBoard.h * (gBoard.visH + 0.35), gBoard.w * gBoard.visW, "center")
+    else
+        lg.printf(stats.timeDisp, fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 1.135), 1200,
+            "left")
+    end
+
     if not settings.altTimerUI then
         gStyle.failCol(game, stats, gCol, false, true)
         lg.printf("SCORE", fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 2.32), 1200, "left")
@@ -1011,21 +995,6 @@ function love.draw()
         lg.printf(stats.scr, fonts.ui, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 2.65), 1200, "left")
     end
 
-    gStyle.failCol(game, stats, gCol, not settings.disablePPSCol, false)
-    lg.printf(string.format("%.2f p/s", stats.currPPS), fonts.othr, -1200, gBoard.h * (gBoard.visH - 1.135),
-        1200 - 20,
-        "right")
-
-    gStyle.failCol(game, stats, gCol, false, false)
-    if not settings.altTimerUI then
-        lg.printf(stats.timeDisp, fonts.time, gBoard.x,
-            gBoard.h * (gBoard.visH + 0.35), gBoard.w * gBoard.visW, "center")
-    else
-        lg.printf(stats.timeDisp, fonts.othr, gBoard.w * (gBoard.visW + 0.85), gBoard.h * (gBoard.visH - 1.135), 1200,
-            "left")
-    end
-
-    -- next frame text
     local sOff, sAlp = 3, .65
     local nFrmYPos = 20 + (gBoard.visH - 20) - 1
 
@@ -1049,6 +1018,11 @@ function love.draw()
     lg.pop()
 
     gfx.dNBox(blocks, ply, game, settings, gBoard, false)
+    lg.pop()
+
+    gStyle.failCol(game, stats, gCol, false, false)
+    lg.printf("NEXT", fonts.othr, gBoard.w * (gBoard.visW + 1.5), gBoard.y + 26, 40, "left")
+
     lg.pop()
 
     -- hold frame text
@@ -1076,15 +1050,14 @@ function love.draw()
         lg.pop()
     end
 
-    gStyle.failCol(game, stats, gCol, false, false)
-    lg.printf("NEXT", fonts.othr, gBoard.w * (gBoard.visW + 1.5), gBoard.y + 26, 40, "left")
     if game.useHold then
+        gStyle.failCol(game, stats, gCol, false, false)
         lg.printf("HOLD", fonts.othr, -60 - 8, gBoard.y + 26, 40, "right")
     end
 
     -- line clear ui effects
     gfx.lClearDrw(stats.lClearUI, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn)
-    gfx.lClearDrw(stats.lClearUITxt, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn)
+    gfx.lClearDrw(stats.lClearUITxt, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn, false)
     if not settings.disableAftrImg then
         gfx.lClearDrw(stats.lClearAftrImg, fonts, gTable, gBoard, game, settings, gColD, cFAC, cFSpn, true)
     end
@@ -1252,6 +1225,9 @@ function love.draw()
             --     lg.print(tostring(stats.sGFill[i]) .. " row: " .. 20 - (i - 1), fonts.othr, 10,
             --         (wHg - 380) + (fonts.othr:getHeight() * (i - 1)))
             -- end
+
+            local h = states.getFillH(gMtrx, gBoard)
+
             lg.print(
                 lt.getFPS() ..
                 " FPS\n" ..
@@ -1278,6 +1254,7 @@ function love.draw()
                 #stats.lEffect ..
                 "\nlkEfct: " ..
                 #stats.lkEfct ..
+                "\nseedVal: " .. seedVal ..
                 "\nuseHold: " ..
                 tostring(game.useHold) .. "\nisHScore: " .. tostring(game.isHScore) ..
                 "\nlowestCells: " ..
@@ -1285,6 +1262,7 @@ function love.draw()
                 "\nquickMove: " ..
                 states.quickMove(-1, ply, gMtrx, blocks, gBoard) ..
                 " / " .. states.quickMove(1, ply, gMtrx, blocks, gBoard) ..
+                "\nheight: " .. h .. " | " .. stats.garbH .. ", " .. h - stats.garbH ..
                 "\nnext: " ..
                 table.concat(ply.next, " ,") ..
                 "\nnHist: " ..
@@ -1371,7 +1349,8 @@ function love.draw()
         end
         if not game.isPaused then
             lg.setColor(1, 1, 1, 1)
-            lg.printf(stats.clrDbg .. ", " .. stats.resetPosDbg, fonts.othr, xOff, wHg - 30 + yOff, wWd - 10, "left")
+            lg.printf(stats.clrDbg .. ", " .. stats.resetPosDbg .. ", " .. lvlDbg, fonts.othr, xOff, wHg - 30 + yOff,
+                wWd - 10, "left")
         end
     end
 end

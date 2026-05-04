@@ -8,7 +8,7 @@ local settings = {
     coloredHDropEffect = true,
     --TODO: Finish all spin support
     allSpin = false,
-    smoothFall = false,
+    smoothFall = true,
     
     fpsTarget = 60,
 

@@ -117,8 +117,9 @@ end
 --- line effect update
 ---@param lineEffectTab table
 ---@param settings table
+---@param ply table
 ---@param dt number
-function effect.lEUpdate(lineEffectTab, settings, dt)
+function effect.lEUpdate(lineEffectTab, settings, ply, dt)
     for i, ln in ipairs(lineEffectTab) do
         if ln.a > 0 then
             if ln.isFill and not ln.isScale then

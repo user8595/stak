@@ -38,6 +38,7 @@ local stats = {
     scrtG = 1, -- index value
     resetPosDbg = 0,
     clrDbg = 0,
+    garbH = 0,
     sGFill = {},
     lClearUI = {},
     lClearUITxt = {},
@@ -54,7 +55,9 @@ local stats = {
     textClr = {},
     -- for line clear particles
     lPart = {},
-    clearedLinesYPos = {}
+    clearedLinesYPos = {},
+    -- for garbage queue
+    gQueue = {}
 }
 
 for _ = 1, 20 do
